@@ -2,9 +2,11 @@
 /**
  * Auth REST API Routes
  *
- * Registers endpoints for authentication, registration, validation, and user profile retrieval.
+ * Registers and handles endpoints for user login, registration, token validation,
+ * and authenticated user profile retrieval.
  *
- * @package Handicraft_Auth
+ * @package   Handicraft_Auth
+ * @namespace handicraft/v1
  */
 
 if (!defined('ABSPATH')) {
@@ -16,63 +18,131 @@ class HIN_Auth_Routes {
     const NAMESPACE = 'handicraft/v1';
 
     /**
-     * Register REST API routes.
+     * Register all REST API routes for Handicraft Auth.
      */
     public function register_routes() {
-        // Login Endpoint
+
+        /**
+         * @route   POST /wp-json/handicraft/v1/auth/login
+         * @desc    Authenticate user credentials and issue signed JWT.
+         * @auth    Public
+         * @params  string username (required) - WP username or email address
+         * @params  string password (required) - User plain text password
+         * @returns 200 { success: bool, token: string, tokenType: 'Bearer', user: object }
+         * @errors  400 Bad Request, 401 Unauthorized
+         */
         register_rest_route(self::NAMESPACE, '/auth/login', [
             'methods'             => WP_REST_Server::CREATABLE,
             'callback'            => [$this, 'handle_login'],
             'permission_callback' => '__return_true',
             'args'                => [
                 'username' => [
+                    'description'       => 'User login username or email address',
                     'required'          => true,
                     'type'              => 'string',
                     'sanitize_callback' => 'sanitize_text_field',
                 ],
                 'password' => [
-                    'required' => true,
-                    'type'     => 'string',
+                    'description' => 'User account password',
+                    'required'    => true,
+                    'type'        => 'string',
                 ],
             ],
         ]);
 
-        // Register Endpoint
+        /**
+         * @route   POST /wp-json/handicraft/v1/auth/register
+         * @desc    Register a new customer or wholesale account and issue signed JWT.
+         * @auth    Public
+         * @params  string email (required), string password (required), string [username], string [role]
+         * @returns 201 { success: bool, message: string, token: string, tokenType: 'Bearer', user: object }
+         * @errors  400 Bad Request, 409 Conflict
+         */
         register_rest_route(self::NAMESPACE, '/auth/register', [
             'methods'             => WP_REST_Server::CREATABLE,
             'callback'            => [$this, 'handle_register'],
             'permission_callback' => '__return_true',
             'args'                => [
                 'email' => [
+                    'description'       => 'Unique user email address',
                     'required'          => true,
                     'type'              => 'string',
                     'sanitize_callback' => 'sanitize_email',
                 ],
                 'password' => [
-                    'required' => true,
-                    'type'     => 'string',
+                    'description' => 'User password (min 6 characters)',
+                    'required'    => true,
+                    'type'        => 'string',
                 ],
                 'username' => [
+                    'description'       => 'Optional unique username. Auto-generated if omitted.',
                     'required'          => false,
                     'type'              => 'string',
                     'sanitize_callback' => 'sanitize_user',
                 ],
                 'role' => [
+                    'description'       => 'User account role (customer or wholesale)',
                     'required'          => false,
                     'type'              => 'string',
+                    'default'           => 'customer',
                     'sanitize_callback' => 'sanitize_key',
+                ],
+                'company_name' => [
+                    'description'       => 'Company name for wholesale accounts',
+                    'required'          => false,
+                    'type'              => 'string',
+                    'sanitize_callback' => 'sanitize_text_field',
+                ],
+                'tax_id' => [
+                    'description'       => 'VAT or Tax ID for wholesale accounts',
+                    'required'          => false,
+                    'type'              => 'string',
+                    'sanitize_callback' => 'sanitize_text_field',
+                ],
+                'country' => [
+                    'description'       => 'Two-letter ISO country code',
+                    'required'          => false,
+                    'type'              => 'string',
+                    'sanitize_callback' => 'sanitize_text_field',
+                ],
+                'phone' => [
+                    'description'       => 'User contact phone number',
+                    'required'          => false,
+                    'type'              => 'string',
+                    'sanitize_callback' => 'sanitize_text_field',
                 ],
             ],
         ]);
 
-        // Token Validate Endpoint
+        /**
+         * @route   POST /wp-json/handicraft/v1/auth/validate
+         * @desc    Validate JWT bearer token authenticity and expiration.
+         * @auth    Public / Bearer header
+         * @params  string [token]
+         * @returns 200 { success: bool, valid: bool, user: object, exp: int }
+         * @errors  400 Bad Request, 401 Unauthorized
+         */
         register_rest_route(self::NAMESPACE, '/auth/validate', [
             'methods'             => WP_REST_Server::CREATABLE,
             'callback'            => [$this, 'handle_validate'],
             'permission_callback' => '__return_true',
+            'args'                => [
+                'token' => [
+                    'description'       => 'JWT Token string (optional if sent via Authorization Bearer header)',
+                    'required'          => false,
+                    'type'              => 'string',
+                    'sanitize_callback' => 'sanitize_text_field',
+                ],
+            ],
         ]);
 
-        // Get Current User Profile (Me)
+        /**
+         * @route   GET /wp-json/handicraft/v1/auth/me
+         * @desc    Retrieve profile data of the currently authenticated user.
+         * @auth    Bearer JWT Token required
+         * @returns 200 { success: bool, user: object }
+         * @errors  401 Unauthorized, 404 Not Found
+         */
         register_rest_route(self::NAMESPACE, '/auth/me', [
             'methods'             => WP_REST_Server::READABLE,
             'callback'            => [$this, 'handle_me'],
@@ -82,6 +152,9 @@ class HIN_Auth_Routes {
 
     /**
      * Handle Login Request.
+     *
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
      */
     public function handle_login(WP_REST_Request $request): WP_REST_Response {
         $username = $request->get_param('username');
@@ -109,6 +182,9 @@ class HIN_Auth_Routes {
 
     /**
      * Handle Registration Request.
+     *
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
      */
     public function handle_register(WP_REST_Request $request): WP_REST_Response {
         $params = $request->get_params();
@@ -136,6 +212,9 @@ class HIN_Auth_Routes {
 
     /**
      * Handle Token Validation Request.
+     *
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
      */
     public function handle_validate(WP_REST_Request $request): WP_REST_Response {
         $token = HIN_JWT_Handler::get_token_from_request();
@@ -182,7 +261,9 @@ class HIN_Auth_Routes {
     }
 
     /**
-     * Handle Get Me Request.
+     * Handle Get Me Request (Current Authenticated User).
+     *
+     * @return WP_REST_Response
      */
     public function handle_me(): WP_REST_Response {
         $current_user_id = get_current_user_id();
@@ -203,6 +284,8 @@ class HIN_Auth_Routes {
 
     /**
      * Permission callback for authenticated requests.
+     *
+     * @return bool
      */
     public function check_authenticated_permission(): bool {
         return is_user_logged_in();
