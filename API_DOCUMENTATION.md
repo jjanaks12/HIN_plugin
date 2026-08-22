@@ -13,6 +13,9 @@
 | `POST` | `/auth/validate` | Verify JWT token validity | No (or Bearer header) |
 | `GET` | `/auth/me` | Fetch currently authenticated user profile | **Yes** (`Bearer <token>`) |
 | `GET` | `/menus` | Fetch navigation menus tree by location or slug | No |
+| `GET` | `/catalog/{slug}` | Fetch category info, subcategories, paginated products, & sorts | No |
+| `GET` | `/products` | Fetch paginated catalog products with multi-criteria sorting | No |
+| `GET` | `/products/{slug}` | Fetch single product detail, attributes, gallery, reviews, & related products | No |
 
 ---
 
@@ -219,9 +222,6 @@ Retrieves hierarchical navigation menu tree for theme locations (e.g. `primary`,
 * **URL:** `/wp-json/handicraft/v1/menus?location=primary` (or `/wp-json/handicraft/v1/menus/primary`)
 * **Method:** `GET`
 * **Auth:** Public
-* **Query Parameters:**
-  * `location` (optional, default: `primary`): Theme menu location name.
-  * `slug` (optional): Specific menu slug.
 
 ### Response `200 OK`
 ```json
@@ -259,9 +259,332 @@ Retrieves hierarchical navigation menu tree for theme locations (e.g. `primary`,
 
 ---
 
+## 6. Category Catalog & Products (`/catalog/{slug}`)
+
+Retrieves category metadata (name, description, subcategories), paginated products, and supports multi-criteria sorting.
+
+* **URL:** `/wp-json/handicraft/v1/catalog/{slug}` or `/wp-json/handicraft/v1/catalog?slug={slug}`
+* **Method:** `GET`
+* **Auth:** Public (includes wholesale dynamic pricing when authenticated via Bearer token)
+* **Path / Query Parameters:**
+  * `slug` (string, optional): Category slug (`incense`, `ancient-tibetan`, `books`) or collection (`arrival`, `stock`).
+  * `sort` (string, optional, default: `latest`):
+    * `latest`: Newest arrivals first.
+    * `popularity`: Best-selling / popular items first.
+    * `rating`: Highest average rating first.
+    * `price_low_high`: Lowest price first.
+    * `price_high_low`: Highest price first.
+    * `title`: Alphabetical (A-Z).
+  * `page` (int, optional, default: `1`): Current page.
+  * `per_page` (int, optional, default: `24`, max `100`): Items per page.
+  * `min_price` / `max_price` (number, optional): Price range filters.
+  * `in_stock` (bool, optional): In-stock filter.
+  * `search` (string, optional): Keyword search filter.
+
+### Response `200 OK`
+```json
+{
+  "success": true,
+  "category": {
+    "id": 295,
+    "name": "Ancient Tibetan",
+    "slug": "ancient-tibetan",
+    "description": "Ancient Tibetan Incense Wholesale...",
+    "parent": 241,
+    "count": 35,
+    "image": null,
+    "subcategories": [],
+    "isSpecial": false
+  },
+  "pagination": {
+    "total": 35,
+    "totalPages": 2,
+    "currentPage": 1,
+    "perPage": 24,
+    "hasNext": true,
+    "hasPrev": false
+  },
+  "sort": "latest",
+  "availableSorts": [
+    { "value": "latest", "label": "Latest Arrivals" },
+    { "value": "popularity", "label": "Popularity / Best Selling" },
+    { "value": "rating", "label": "Average Rating" },
+    { "value": "price_low_high", "label": "Price: Low to High" },
+    { "value": "price_high_low", "label": "Price: High to Low" },
+    { "value": "title", "label": "Alphabetical (A-Z)" }
+  ],
+  "products": [
+    {
+      "id": 1234,
+      "name": "Singing Bowls: Sound Healing Collections #1 by Dharmapa",
+      "slug": "singing-bowls-sound-healing-collections-1-by-dharmapa",
+      "sku": "9786079943189",
+      "price": 10.00,
+      "regularPrice": 20.00,
+      "salePrice": 10.00,
+      "wholesalePrice": null,
+      "onSale": true,
+      "inStock": true,
+      "stockQuantity": null,
+      "rating": 4.5,
+      "reviewCount": 2,
+      "images": [
+        {
+          "id": 12937,
+          "src": "https://hin.test/wp-content/uploads/2026/08/singing-bowls-front-1.jpg",
+          "thumbnail": "https://hin.test/wp-content/uploads/2026/08/singing-bowls-front-1-300x300.jpg",
+          "alt": "Singing Bowls Sound Healing"
+        }
+      ],
+      "featuredImage": "https://hin.test/wp-content/uploads/2026/08/singing-bowls-front-1.jpg",
+      "categories": [
+        { "id": 303, "name": "Books", "slug": "books" }
+      ],
+      "shortDescription": "Discover the transformative power of sound...",
+      "description": "...",
+      "weight": "1",
+      "dimensions": { "length": "", "width": "", "height": "" },
+      "createdAt": "2026-08-22T03:13:19+00:00"
+    }
+  ]
+}
+```
+
+---
+
+## 8. Product Detail
+
+Retrieves single product information by slug or numeric ID, including gallery images, category hierarchy, custom attributes (materials, dimensions), customer reviews, and related products with dynamic wholesale pricing calculations.
+
+* **URL:** `/wp-json/handicraft/v1/products/{slug}`
+* **Method:** `GET`
+* **Headers:** `X-Country-Code: <2-letter-code>` (Optional), `Authorization: Bearer <token>` (Optional)
+
+### Path Parameters
+| Parameter | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `slug` | `string` | **Yes** | Product slug (e.g. `singing-bowl-set`) or numeric product ID (e.g. `124`). |
+
+### Response `200 OK`
+```json
+{
+  "success": true,
+  "product": {
+    "id": 142,
+    "name": "Handmade 7-Metal Tibetan Singing Bowl Set",
+    "slug": "handmade-7-metal-tibetan-singing-bowl-set",
+    "sku": "SB-TIB-001",
+    "price": 85.00,
+    "regularPrice": 110.00,
+    "salePrice": 85.00,
+    "wholesalePrice": 45.00,
+    "onSale": true,
+    "inStock": true,
+    "stockQuantity": 15,
+    "rating": 4.9,
+    "reviewCount": 8,
+    "images": [
+      {
+        "id": 501,
+        "src": "https://example.com/wp-content/uploads/singing-bowl-1.jpg",
+        "thumbnail": "https://example.com/wp-content/uploads/singing-bowl-1-300x300.jpg",
+        "alt": "Tibetan Singing Bowl with Wooden Striker and Cushion"
+      },
+      {
+        "id": 502,
+        "src": "https://example.com/wp-content/uploads/singing-bowl-2.jpg",
+        "thumbnail": "https://example.com/wp-content/uploads/singing-bowl-2-300x300.jpg",
+        "alt": "Tibetan Singing Bowl side view"
+      }
+    ],
+    "featuredImage": "https://example.com/wp-content/uploads/singing-bowl-1.jpg",
+    "categories": [
+      { "id": 18, "name": "Singing Bowls", "slug": "singing-bowls" },
+      { "id": 12, "name": "Spiritual Crafts", "slug": "spiritual-crafts" }
+    ],
+    "shortDescription": "Handcrafted Tibetan meditation singing bowl made from seven resonant sacred metals with wooden mallet and hand-sewn ring cushion.",
+    "description": "<p>Authentically crafted in the Kathmandu Valley by traditional Newar metalsmiths...</p>",
+    "weight": "1.2",
+    "dimensions": { "length": "15", "width": "15", "height": "9" },
+    "createdAt": "2026-08-15T09:30:00+00:00",
+    "attributes": [
+      {
+        "id": 1,
+        "name": "Material",
+        "slug": "material",
+        "options": ["7 Traditional Metals (Copper, Tin, Zinc, Iron, Lead, Silver, Gold)"],
+        "visible": true,
+        "variation": false
+      },
+      {
+        "id": 2,
+        "name": "Origin",
+        "slug": "origin",
+        "options": ["Patan, Kathmandu Valley, Nepal"],
+        "visible": true,
+        "variation": false
+      }
+    ],
+    "relatedProducts": [
+      {
+        "id": 145,
+        "name": "Tingsha Cymbals with Embossed Dragons",
+        "slug": "tingsha-cymbals-embossed-dragons",
+        "sku": "TC-DRG-002",
+        "price": 32.00,
+        "regularPrice": 32.00,
+        "salePrice": null,
+        "wholesalePrice": 18.00,
+        "onSale": false,
+        "inStock": true,
+        "stockQuantity": 20,
+        "rating": 5.0,
+        "reviewCount": 4,
+        "images": [],
+        "featuredImage": "https://example.com/wp-content/uploads/tingsha-1.jpg",
+        "categories": [{ "id": 18, "name": "Singing Bowls", "slug": "singing-bowls" }],
+        "shortDescription": "Traditional bronze Tibetan Tingsha bells.",
+        "description": "<p>Hand-tuned meditation cymbals...</p>",
+        "createdAt": "2026-08-14T10:00:00+00:00"
+      }
+    ],
+    "reviews": [
+      {
+        "id": 92,
+        "author": "Sarah Jenkins",
+        "content": "Incredible sound resonance and beautiful craftsmanship. Packed securely and arrived quickly in the US.",
+        "rating": 5,
+        "date": "2026-08-18T14:20:00+00:00",
+        "verified": true
+      }
+    ]
+  }
+}
+```
+
+### Error Responses
+* `400 Bad Request` — Missing product identifier slug.
+* `404 Not Found` — Product does not exist or is not published.
+
+---
+
 ## TypeScript Interfaces (For Nuxt 3 Frontend)
 
 ```typescript
+export interface ProductImage {
+  id: number;
+  src: string;
+  thumbnail: string;
+  alt: string;
+}
+
+export interface ProductCategoryRef {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+export interface SubCategory {
+  id: number;
+  name: string;
+  slug: string;
+  count: number;
+  href: string;
+}
+
+export interface CategoryDetail {
+  id: number;
+  name: string;
+  slug: string;
+  description: string;
+  rawDescription?: string;
+  parent: number;
+  count: number;
+  image?: string | null;
+  subcategories: SubCategory[];
+  isSpecial: boolean;
+}
+
+export interface ProductItem {
+  id: number;
+  name: string;
+  slug: string;
+  sku: string;
+  price: number;
+  regularPrice: number;
+  salePrice: number | null;
+  wholesalePrice: number | null;
+  onSale: boolean;
+  inStock: boolean;
+  stockQuantity: number | null;
+  rating: number;
+  reviewCount: number;
+  images: ProductImage[];
+  featuredImage: string;
+  categories: ProductCategoryRef[];
+  shortDescription: string;
+  description: string;
+  weight?: string;
+  dimensions?: {
+    length: string;
+    width: string;
+    height: string;
+  };
+  createdAt: string;
+}
+
+export interface PaginationMeta {
+  total: number;
+  totalPages: number;
+  currentPage: number;
+  perPage: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
+export interface SortOption {
+  value: string;
+  label: string;
+}
+
+export interface CatalogResponse {
+  success: boolean;
+  category: CategoryDetail;
+  pagination: PaginationMeta;
+  sort: string;
+  availableSorts: SortOption[];
+  products: ProductItem[];
+}
+
+export interface ProductAttribute {
+  id: number;
+  name: string;
+  slug: string;
+  options: string[];
+  visible: boolean;
+  variation: boolean;
+}
+
+export interface ProductReview {
+  id: number;
+  author: string;
+  content: string;
+  rating: number;
+  date: string;
+  verified: boolean;
+}
+
+export interface ProductDetail extends ProductItem {
+  attributes: ProductAttribute[];
+  relatedProducts: ProductItem[];
+  reviews: ProductReview[];
+}
+
+export interface ProductDetailResponse {
+  success: boolean;
+  product: ProductDetail;
+}
+
 export interface MenuItem {
   id?: number;
   label: string;

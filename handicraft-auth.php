@@ -22,6 +22,8 @@ require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-jwt-handler.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-user-service.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-auth-routes.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-menu-routes.php';
+require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-catalog-routes.php';
+require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-documentation-viewer.php';
 
 /**
  * Main Plugin Bootstrap Class
@@ -57,6 +59,10 @@ class HIN_Auth_Plugin {
 
         // Register REST API endpoints
         add_action('rest_api_init', [$this, 'register_rest_routes']);
+
+        // Initialize /documentation Endpoint Viewer
+        $doc_viewer = new HIN_Documentation_Viewer();
+        $doc_viewer->init();
 
         // Headless CORS Headers for Nuxt 3 frontend
         add_action('init', [$this, 'handle_cors_preflight']);
@@ -103,6 +109,9 @@ class HIN_Auth_Plugin {
 
         $menu_routes = new HIN_Menu_Routes();
         $menu_routes->register_routes();
+
+        $catalog_routes = new HIN_Catalog_Routes();
+        $catalog_routes->register_routes();
     }
 
     public function register_rest_routes() {
