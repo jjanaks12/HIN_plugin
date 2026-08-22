@@ -21,6 +21,7 @@ define('HIN_AUTH_PLUGIN_DIR', plugin_dir_path(__FILE__));
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-jwt-handler.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-user-service.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-auth-routes.php';
+require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-menu-routes.php';
 
 /**
  * Main Plugin Bootstrap Class
@@ -47,6 +48,10 @@ class HIN_Auth_Plugin {
         // Register custom roles upon plugin activation
         register_activation_hook(__FILE__, [$this, 'on_activate']);
 
+        // Register Navigation Menus
+        add_action('after_setup_theme', [$this, 'register_nav_menus']);
+        add_action('init', [$this, 'register_nav_menus']);
+
         // Authenticate requests via JWT Bearer token
         add_filter('determine_current_user', ['HIN_JWT_Handler', 'determine_current_user'], 20);
 
@@ -57,6 +62,19 @@ class HIN_Auth_Plugin {
         add_action('init', [$this, 'handle_cors_preflight']);
         add_filter('allowed_http_origins', [$this, 'allow_custom_http_origins']);
         add_action('rest_api_init', [$this, 'setup_cors_headers'], 15);
+    }
+
+    /**
+     * Register navigation menu locations for headless frontend.
+     */
+    public function register_nav_menus() {
+        if (function_exists('register_nav_menus')) {
+            register_nav_menus([
+                'primary' => __('Primary Navigation Menu', 'handicraft-auth'),
+                'footer'  => __('Footer Navigation Menu', 'handicraft-auth'),
+                'mobile'  => __('Mobile Navigation Menu', 'handicraft-auth'),
+            ]);
+        }
     }
 
     /**
@@ -82,6 +100,9 @@ class HIN_Auth_Plugin {
     public function register_routes() {
         $auth_routes = new HIN_Auth_Routes();
         $auth_routes->register_routes();
+
+        $menu_routes = new HIN_Menu_Routes();
+        $menu_routes->register_routes();
     }
 
     public function register_rest_routes() {

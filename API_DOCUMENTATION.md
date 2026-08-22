@@ -12,6 +12,7 @@
 | `POST` | `/auth/register` | Register new customer or wholesale user & issue JWT token | No |
 | `POST` | `/auth/validate` | Verify JWT token validity | No (or Bearer header) |
 | `GET` | `/auth/me` | Fetch currently authenticated user profile | **Yes** (`Bearer <token>`) |
+| `GET` | `/menus` | Fetch navigation menus tree by location or slug | No |
 
 ---
 
@@ -211,9 +212,73 @@ Retrieves the authenticated user's profile and roles.
 
 ---
 
+## 5. Get Navigation Menus (`/menus`)
+
+Retrieves hierarchical navigation menu tree for theme locations (e.g. `primary`, `footer`, `mobile`) or by menu slug.
+
+* **URL:** `/wp-json/handicraft/v1/menus?location=primary` (or `/wp-json/handicraft/v1/menus/primary`)
+* **Method:** `GET`
+* **Auth:** Public
+* **Query Parameters:**
+  * `location` (optional, default: `primary`): Theme menu location name.
+  * `slug` (optional): Specific menu slug.
+
+### Response `200 OK`
+```json
+{
+  "success": true,
+  "location": "primary",
+  "menu_name": "Primary Menu",
+  "data": [
+    {
+      "id": 214,
+      "label": "Arrival",
+      "href": "/arrival",
+      "badge": "new",
+      "order": 1,
+      "children": []
+    },
+    {
+      "id": 215,
+      "label": "Incense",
+      "href": "/incense",
+      "order": 2,
+      "children": [
+        {
+          "id": 216,
+          "label": "Ancient Tibetan",
+          "href": "/incense/ancient-tibetan",
+          "order": 3,
+          "children": []
+        }
+      ]
+    }
+  ]
+}
+```
+
+---
+
 ## TypeScript Interfaces (For Nuxt 3 Frontend)
 
 ```typescript
+export interface MenuItem {
+  id?: number;
+  label: string;
+  href: string;
+  badge?: string;
+  target?: string;
+  order?: number;
+  children?: MenuItem[];
+}
+
+export interface MenusResponse {
+  success: boolean;
+  location: string;
+  menu_name?: string;
+  data: MenuItem[];
+}
+
 export interface UserProfile {
   id: number;
   username: string;
