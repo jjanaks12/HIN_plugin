@@ -14,8 +14,9 @@
 | `GET` | `/auth/me` | Fetch currently authenticated user profile | **Yes** (`Bearer <token>`) |
 | `GET` | `/menus` | Fetch navigation menus tree by location or slug | No |
 | `GET` | `/catalog/{slug}` | Fetch category info, subcategories, paginated products, & sorts | No |
-| `GET` | `/products` | Fetch paginated catalog products with multi-criteria sorting | No |
+| `GET` | `/products` | Fetch paginated catalog products with multi-criteria sorting & search | No |
 | `GET` | `/products/{slug}` | Fetch single product detail, attributes, gallery, reviews, & related products | No |
+| `GET` | `/search` | Predictive instant autocomplete search for products & categories | No |
 
 ---
 
@@ -62,6 +63,37 @@ Authenticates user credentials and returns a signed JSON Web Token (JWT) along w
 ### Error Responses
 * `400 Bad Request` — Missing username or password
 * `401 Unauthorized` — Invalid username, email, or password
+
+### TypeScript Interface (Frontend Contract)
+```typescript
+export interface LoginPayload {
+  username: string;
+  password: string;
+}
+
+export interface UserProfile {
+  id: number;
+  username: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  displayName: string;
+  roles: string[];
+  isWholesale: boolean;
+  companyName?: string;
+  country?: string;
+  phone?: string;
+  registeredAt: string;
+}
+
+export interface AuthResponse {
+  success: boolean;
+  message?: string;
+  token: string;
+  tokenType: 'Bearer';
+  user: UserProfile;
+}
+```
 
 ---
 
@@ -130,6 +162,30 @@ Registers a new user account (Customer B2C or Wholesale B2B). Automatically sign
 * `400 Bad Request` — Missing email/password or invalid format.
 * `409 Conflict` — Username or email already registered.
 
+### TypeScript Interface (Frontend Contract)
+```typescript
+export interface RegisterPayload {
+  email: string;
+  password: string;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  role?: 'customer' | 'wholesale';
+  companyName?: string;
+  taxId?: string;
+  country?: string;
+  phone?: string;
+}
+
+export interface RegisterResponse {
+  success: boolean;
+  message: string;
+  token: string;
+  tokenType: 'Bearer';
+  user: UserProfile;
+}
+```
+
 ---
 
 ## 3. Validate Token
@@ -173,6 +229,22 @@ Validates whether a JWT token is valid, correctly signed, and not expired.
 }
 ```
 
+### TypeScript Interface (Frontend Contract)
+```typescript
+export interface ValidateTokenResponse {
+  success: boolean;
+  valid: boolean;
+  user: {
+    id: number;
+    username: string;
+    email: string;
+    roles: string[];
+    isWholesale: boolean;
+  };
+  exp: number;
+}
+```
+
 ---
 
 ## 4. Get Current User Profile (`/auth/me`)
@@ -210,6 +282,14 @@ Retrieves the authenticated user's profile and roles.
   "code": "rest_forbidden",
   "message": "Sorry, you are not allowed to do that.",
   "data": { "status": 401 }
+}
+```
+
+### TypeScript Interface (Frontend Contract)
+```typescript
+export interface CurrentUserResponse {
+  success: boolean;
+  user: UserProfile;
 }
 ```
 
@@ -257,6 +337,26 @@ Retrieves hierarchical navigation menu tree for theme locations (e.g. `primary`,
 }
 ```
 
+### TypeScript Interface (Frontend Contract)
+```typescript
+export interface MenuItem {
+  id?: number;
+  label: string;
+  href: string;
+  badge?: string;
+  target?: string;
+  order?: number;
+  children?: MenuItem[];
+}
+
+export interface MenusResponse {
+  success: boolean;
+  location: string;
+  menu_name?: string;
+  data: MenuItem[];
+}
+```
+
 ---
 
 ## 6. Category Catalog & Products (`/catalog/{slug}`)
@@ -267,7 +367,7 @@ Retrieves category metadata (name, description, subcategories), paginated produc
 * **Method:** `GET`
 * **Auth:** Public (includes wholesale dynamic pricing when authenticated via Bearer token)
 * **Path / Query Parameters:**
-  * `slug` (string, optional): Category slug (`incense`, `ancient-tibetan`, `books`) or collection (`arrival`, `stock`).
+  * `slug` (string, optional): Category slug (`incense`, `ancient-tibetan`, `books`) or collection (`arrival`, `stock`). Supports nested leaf paths like `incense/ancient-tibetan`.
   * `sort` (string, optional, default: `latest`):
     * `latest`: Newest arrivals first.
     * `popularity`: Best-selling / popular items first.
@@ -290,6 +390,7 @@ Retrieves category metadata (name, description, subcategories), paginated produc
     "name": "Ancient Tibetan",
     "slug": "ancient-tibetan",
     "description": "Ancient Tibetan Incense Wholesale...",
+    "rawDescription": "Ancient Tibetan Incense Wholesale...",
     "parent": 241,
     "count": 35,
     "image": null,
@@ -316,43 +417,131 @@ Retrieves category metadata (name, description, subcategories), paginated produc
   "products": [
     {
       "id": 1234,
-      "name": "Singing Bowls: Sound Healing Collections #1 by Dharmapa",
-      "slug": "singing-bowls-sound-healing-collections-1-by-dharmapa",
-      "sku": "9786079943189",
-      "price": 10.00,
-      "regularPrice": 20.00,
-      "salePrice": 10.00,
-      "wholesalePrice": null,
-      "onSale": true,
+      "name": "Ancient Tibetan Calamus Incense",
+      "slug": "ancient-tibetan-calamus-incense",
+      "sku": "ATI-01",
+      "price": 2.50,
+      "regularPrice": 2.50,
+      "salePrice": null,
+      "wholesalePrice": 1.38,
+      "onSale": false,
       "inStock": true,
       "stockQuantity": null,
-      "rating": 4.5,
-      "reviewCount": 2,
+      "rating": 5.0,
+      "reviewCount": 3,
       "images": [
         {
           "id": 12937,
-          "src": "https://hin.test/wp-content/uploads/2026/08/singing-bowls-front-1.jpg",
-          "thumbnail": "https://hin.test/wp-content/uploads/2026/08/singing-bowls-front-1-300x300.jpg",
-          "alt": "Singing Bowls Sound Healing"
+          "src": "https://hin.test/wp-content/uploads/2026/08/calamus-incense.jpg",
+          "thumbnail": "https://hin.test/wp-content/uploads/2026/08/calamus-incense-300x300.jpg",
+          "alt": "Ancient Tibetan Calamus Incense"
         }
       ],
-      "featuredImage": "https://hin.test/wp-content/uploads/2026/08/singing-bowls-front-1.jpg",
+      "featuredImage": "https://hin.test/wp-content/uploads/2026/08/calamus-incense.jpg",
       "categories": [
-        { "id": 303, "name": "Books", "slug": "books" }
+        { "id": 16, "name": "Ancient Tibetan", "slug": "ancient-tibetan" },
+        { "id": 50, "name": "Incense", "slug": "incense" }
       ],
-      "shortDescription": "Discover the transformative power of sound...",
-      "description": "...",
-      "weight": "1",
-      "dimensions": { "length": "", "width": "", "height": "" },
-      "createdAt": "2026-08-22T03:13:19+00:00"
+      "shortDescription": "Handcrafted Tibetan meditation herbal incense...",
+      "description": "",
+      "weight": "0.05",
+      "dimensions": { "length": "20", "width": "2", "height": "2" },
+      "createdAt": "2022-11-21T19:20:50+00:00"
     }
   ]
 }
 ```
 
+### TypeScript Interface (Frontend Contract)
+```typescript
+export interface SubCategory {
+  id: number;
+  name: string;
+  slug: string;
+  count: number;
+  href: string;
+}
+
+export interface CategoryDetail {
+  id: number;
+  name: string;
+  slug: string;
+  description: string;
+  rawDescription?: string;
+  parent: number;
+  count: number;
+  image?: string | null;
+  subcategories: SubCategory[];
+  isSpecial: boolean;
+}
+
+export interface PaginationMeta {
+  total: number;
+  totalPages: number;
+  currentPage: number;
+  perPage: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
+export interface SortOption {
+  value: string;
+  label: string;
+}
+
+export interface CatalogResponse {
+  success: boolean;
+  category: CategoryDetail;
+  pagination: PaginationMeta;
+  sort: string;
+  availableSorts: SortOption[];
+  products: ProductItem[];
+}
+```
+
 ---
 
-## 8. Product Detail
+## 7. Catalog Products List (`/products`)
+
+Retrieves paginated catalog product listings across all collections or filtered by search query, price ranges, and multi-criteria sorting.
+
+* **URL:** `/wp-json/handicraft/v1/products`
+* **Method:** `GET`
+* **Auth:** Public
+
+### Query Parameters
+| Parameter | Type | Required | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `page` | `integer` | No | `1` | Page number |
+| `per_page` | `integer` | No | `24` | Products per page (max: 100) |
+| `sort` | `string` | No | `latest` | `latest`, `popularity`, `rating`, `price_low_high`, `price_high_low`, `title` |
+| `search` / `q` | `string` | No | `""` | Search keyword across product titles and descriptions |
+| `min_price` | `number` | No | — | Minimum price boundary |
+| `max_price` | `number` | No | — | Maximum price boundary |
+| `in_stock` | `boolean` | No | — | Filter in-stock products only |
+
+### Response `200 OK`
+Returns the standard `CatalogResponse` payload format.
+
+### TypeScript Interface (Frontend Contract)
+```typescript
+export interface ProductQueryParams {
+  page?: number;
+  per_page?: number;
+  sort?: 'latest' | 'popularity' | 'rating' | 'price_low_high' | 'price_high_low' | 'title';
+  search?: string;
+  q?: string;
+  min_price?: number;
+  max_price?: number;
+  in_stock?: boolean;
+}
+
+export interface ProductListResponse extends CatalogResponse {}
+```
+
+---
+
+## 8. Product Detail (`/products/{slug}`)
 
 Retrieves single product information by slug or numeric ID, including gallery images, category hierarchy, custom attributes (materials, dimensions), customer reviews, and related products with dynamic wholesale pricing calculations.
 
@@ -386,21 +575,14 @@ Retrieves single product information by slug or numeric ID, including gallery im
     "images": [
       {
         "id": 501,
-        "src": "https://example.com/wp-content/uploads/singing-bowl-1.jpg",
-        "thumbnail": "https://example.com/wp-content/uploads/singing-bowl-1-300x300.jpg",
+        "src": "https://hin.test/wp-content/uploads/2026/08/singing-bowl-1.jpg",
+        "thumbnail": "https://hin.test/wp-content/uploads/2026/08/singing-bowl-1-300x300.jpg",
         "alt": "Tibetan Singing Bowl with Wooden Striker and Cushion"
-      },
-      {
-        "id": 502,
-        "src": "https://example.com/wp-content/uploads/singing-bowl-2.jpg",
-        "thumbnail": "https://example.com/wp-content/uploads/singing-bowl-2-300x300.jpg",
-        "alt": "Tibetan Singing Bowl side view"
       }
     ],
-    "featuredImage": "https://example.com/wp-content/uploads/singing-bowl-1.jpg",
+    "featuredImage": "https://hin.test/wp-content/uploads/2026/08/singing-bowl-1.jpg",
     "categories": [
-      { "id": 18, "name": "Singing Bowls", "slug": "singing-bowls" },
-      { "id": 12, "name": "Spiritual Crafts", "slug": "spiritual-crafts" }
+      { "id": 18, "name": "Singing Bowls", "slug": "singing-bowls" }
     ],
     "shortDescription": "Handcrafted Tibetan meditation singing bowl made from seven resonant sacred metals with wooden mallet and hand-sewn ring cushion.",
     "description": "<p>Authentically crafted in the Kathmandu Valley by traditional Newar metalsmiths...</p>",
@@ -413,14 +595,6 @@ Retrieves single product information by slug or numeric ID, including gallery im
         "name": "Material",
         "slug": "material",
         "options": ["7 Traditional Metals (Copper, Tin, Zinc, Iron, Lead, Silver, Gold)"],
-        "visible": true,
-        "variation": false
-      },
-      {
-        "id": 2,
-        "name": "Origin",
-        "slug": "origin",
-        "options": ["Patan, Kathmandu Valley, Nepal"],
         "visible": true,
         "variation": false
       }
@@ -441,7 +615,7 @@ Retrieves single product information by slug or numeric ID, including gallery im
         "rating": 5.0,
         "reviewCount": 4,
         "images": [],
-        "featuredImage": "https://example.com/wp-content/uploads/tingsha-1.jpg",
+        "featuredImage": "https://hin.test/wp-content/uploads/2026/08/tingsha-1.jpg",
         "categories": [{ "id": 18, "name": "Singing Bowls", "slug": "singing-bowls" }],
         "shortDescription": "Traditional bronze Tibetan Tingsha bells.",
         "description": "<p>Hand-tuned meditation cymbals...</p>",
@@ -450,11 +624,11 @@ Retrieves single product information by slug or numeric ID, including gallery im
     ],
     "reviews": [
       {
-        "id": 92,
-        "author": "Sarah Jenkins",
-        "content": "Incredible sound resonance and beautiful craftsmanship. Packed securely and arrived quickly in the US.",
+        "id": 101,
+        "author": "Maya Lin",
+        "content": "Incredible acoustic sustain and pristine hand-hammered finish.",
         "rating": 5,
-        "date": "2026-08-18T14:20:00+00:00",
+        "date": "2026-08-16T12:00:00+00:00",
         "verified": true
       }
     ]
@@ -466,10 +640,7 @@ Retrieves single product information by slug or numeric ID, including gallery im
 * `400 Bad Request` — Missing product identifier slug.
 * `404 Not Found` — Product does not exist or is not published.
 
----
-
-## TypeScript Interfaces (For Nuxt 3 Frontend)
-
+### TypeScript Interface (Frontend Contract)
 ```typescript
 export interface ProductImage {
   id: number;
@@ -484,25 +655,22 @@ export interface ProductCategoryRef {
   slug: string;
 }
 
-export interface SubCategory {
+export interface ProductAttribute {
   id: number;
   name: string;
   slug: string;
-  count: number;
-  href: string;
+  options: string[];
+  visible: boolean;
+  variation: boolean;
 }
 
-export interface CategoryDetail {
+export interface ProductReview {
   id: number;
-  name: string;
-  slug: string;
-  description: string;
-  rawDescription?: string;
-  parent: number;
-  count: number;
-  image?: string | null;
-  subcategories: SubCategory[];
-  isSpecial: boolean;
+  author: string;
+  content: string;
+  rating: number;
+  date: string;
+  verified: boolean;
 }
 
 export interface ProductItem {
@@ -533,47 +701,6 @@ export interface ProductItem {
   createdAt: string;
 }
 
-export interface PaginationMeta {
-  total: number;
-  totalPages: number;
-  currentPage: number;
-  perPage: number;
-  hasNext: boolean;
-  hasPrev: boolean;
-}
-
-export interface SortOption {
-  value: string;
-  label: string;
-}
-
-export interface CatalogResponse {
-  success: boolean;
-  category: CategoryDetail;
-  pagination: PaginationMeta;
-  sort: string;
-  availableSorts: SortOption[];
-  products: ProductItem[];
-}
-
-export interface ProductAttribute {
-  id: number;
-  name: string;
-  slug: string;
-  options: string[];
-  visible: boolean;
-  variation: boolean;
-}
-
-export interface ProductReview {
-  id: number;
-  author: string;
-  content: string;
-  rating: number;
-  date: string;
-  verified: boolean;
-}
-
 export interface ProductDetail extends ProductItem {
   attributes: ProductAttribute[];
   relatedProducts: ProductItem[];
@@ -584,51 +711,78 @@ export interface ProductDetailResponse {
   success: boolean;
   product: ProductDetail;
 }
+```
 
-export interface MenuItem {
-  id?: number;
-  label: string;
-  href: string;
-  badge?: string;
-  target?: string;
-  order?: number;
-  children?: MenuItem[];
+---
+
+## 9. Instant Predictive Search (`/search`)
+
+Returns quick autocomplete suggestions for matching product categories and top products matching the search query.
+
+* **URL:** `/wp-json/handicraft/v1/search`
+* **Method:** `GET`
+* **Auth Required:** No (Public)
+
+### Query Parameters
+| Parameter | Type | Required | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `q` | `string` | No | `""` | Search keyword query (e.g. `singing`, `incense`, `hemp`) |
+| `limit` | `integer` | No | `6` | Maximum products to return in suggestions (max: 20) |
+
+### Response `200 OK`
+```json
+{
+  "success": true,
+  "query": "singing",
+  "total": 59,
+  "categories": [
+    {
+      "id": 65,
+      "name": "Singing Bowl",
+      "slug": "singing-bowl",
+      "count": 52,
+      "href": "/singing-bowl"
+    }
+  ],
+  "products": [
+    {
+      "id": 14,
+      "name": "Singing Bowls: Sound Healing Collections #1 by Dharmapa",
+      "slug": "singing-bowls-sound-healing-collections-1-by-dharmapa",
+      "sku": "BKSH-01",
+      "price": 10,
+      "regularPrice": 10,
+      "salePrice": null,
+      "wholesalePrice": 5.5,
+      "onSale": false,
+      "inStock": true,
+      "stockQuantity": null,
+      "rating": 5,
+      "reviewCount": 2,
+      "featuredImage": "https://hin.test/wp-content/uploads/2026/08/singing-bowl-book.jpg",
+      "categories": [
+        { "id": 23, "name": "Books", "slug": "books" }
+      ]
+    }
+  ]
 }
+```
 
-export interface MenusResponse {
-  success: boolean;
-  location: string;
-  menu_name?: string;
-  data: MenuItem[];
-}
-
-export interface UserProfile {
+### TypeScript Interface (Frontend Contract)
+```typescript
+export interface SearchCategoryResult {
   id: number;
-  username: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  displayName: string;
-  roles: string[];
-  isWholesale: boolean;
-  companyName?: string;
-  country?: string;
-  phone?: string;
-  registeredAt: string;
+  name: string;
+  slug: string;
+  count: number;
+  href: string;
 }
 
-export interface AuthResponse {
+export interface InstantSearchResponse {
   success: boolean;
-  message?: string;
-  token: string;
-  tokenType: 'Bearer';
-  user: UserProfile;
-}
-
-export interface ValidateTokenResponse {
-  success: boolean;
-  valid: boolean;
-  user: UserProfile;
-  exp: number;
+  query: string;
+  total: number;
+  categories: SearchCategoryResult[];
+  products: ProductItem[];
 }
 ```

@@ -106,6 +106,7 @@ class HIN_Documentation_Viewer {
             '6' => 'GET',
             '7' => 'GET',
             '8' => 'GET',
+            '9' => 'GET',
         ];
 
         foreach ($lines as $line) {

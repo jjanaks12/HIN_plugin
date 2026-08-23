@@ -51,6 +51,32 @@ class HIN_Catalog_Routes {
         ]);
 
         /**
+         * @route   GET /wp-json/handicraft/v1/search
+         * @desc    Instant predictive search returning matched categories and products.
+         * @auth    Public
+         */
+        register_rest_route(self::NAMESPACE, '/search', [
+            'methods'             => WP_REST_Server::READABLE,
+            'callback'            => [$this, 'handle_instant_search'],
+            'permission_callback' => '__return_true',
+            'args'                => [
+                'q' => [
+                    'description'       => 'Search query keyword',
+                    'required'          => false,
+                    'type'              => 'string',
+                    'sanitize_callback' => 'sanitize_text_field',
+                ],
+                'limit' => [
+                    'description'       => 'Maximum items to return (default 6)',
+                    'required'          => false,
+                    'type'              => 'integer',
+                    'default'           => 6,
+                    'sanitize_callback' => 'absint',
+                ],
+            ],
+        ]);
+
+        /**
          * @route   GET /wp-json/handicraft/v1/products/{slug}
          * @desc    Retrieve single product detail, attributes, gallery, reviews, and related products.
          * @auth    Public
@@ -147,13 +173,18 @@ class HIN_Catalog_Routes {
         $min_price = $request->get_param('min_price');
         $max_price = $request->get_param('max_price');
         $in_stock  = $request->get_param('in_stock');
-        $search    = $request->get_param('search');
+        $search    = trim($request->get_param('search') ?: $request->get_param('q') ?: $request->get_param('s') ?: '');
 
         // Check if requester is wholesale
         $is_wholesale = $this->is_wholesale_requester();
 
         // 1. Resolve Category / Collection Info
         $category_data = $this->resolve_category_info($slug);
+
+        if (!empty($search) && (empty($category_data['term_id']) || empty($slug) || $slug === 'all' || $slug === 'products')) {
+            $category_data['info']['name']        = 'Search: "' . esc_html($search) . '"';
+            $category_data['info']['description'] = 'Search results for authentic handcrafted items matching "' . esc_html($search) . '".';
+        }
 
         // 2. Build WP_Query Arguments
         $args = [
@@ -180,14 +211,7 @@ class HIN_Catalog_Routes {
             ];
         }
 
-        // Special Collection: Stock / On Sale
-        if ($slug === 'stock') {
-            $args['meta_query'][] = [
-                'key'     => '_stock_status',
-                'value'   => 'instock',
-                'compare' => '=',
-            ];
-        }
+
 
         // In-stock Filter
         if ($in_stock === true || $in_stock === 'true' || $in_stock === 1) {
@@ -267,14 +291,33 @@ class HIN_Catalog_Routes {
      * Resolve category metadata and subcategories.
      */
     private function resolve_category_info(?string $slug): array {
-        // Special 1: Arrival (New Arrivals)
+        // Special 1: Arrival (New Arrivals) - Link to WooCommerce category if exists
         if ($slug === 'arrival' || $slug === 'new-arrivals') {
+            $term = get_term_by('slug', 'new-arrivals', 'product_cat') ?: get_term_by('slug', 'arrival', 'product_cat');
+            if ($term && !is_wp_error($term)) {
+                return [
+                    'term_id' => (int) $term->term_id,
+                    'info'    => [
+                        'id'            => (int) $term->term_id,
+                        'name'          => html_entity_decode($term->name, ENT_QUOTES, 'UTF-8'),
+                        'slug'          => $term->slug,
+                        'description'   => wp_strip_all_tags($term->description) ?: 'Discover our newest handcrafted collections made with authentic traditions and spiritual care in Nepal.',
+                        'rawDescription'=> $term->description,
+                        'parent'        => (int) $term->parent,
+                        'count'         => (int) $term->count,
+                        'image'         => null,
+                        'subcategories' => [],
+                        'isSpecial'     => false,
+                    ],
+                ];
+            }
+
             return [
                 'term_id' => null,
                 'info'    => [
                     'id'            => 0,
                     'name'          => 'New Arrivals',
-                    'slug'          => 'arrival',
+                    'slug'          => 'new-arrivals',
                     'description'   => 'Discover our newest handcrafted collections made with authentic traditions and spiritual care in Nepal.',
                     'parent'        => 0,
                     'count'         => 0,
@@ -284,15 +327,34 @@ class HIN_Catalog_Routes {
             ];
         }
 
-        // Special 2: Stock (In Stock & Ready to Ship)
-        if ($slug === 'stock' || $slug === 'in-stock') {
+        // Special 2: Stock (On Sale / Clearance Items) - Link to on-sale category
+        if ($slug === 'stock' || $slug === 'on-sale' || $slug === 'sale') {
+            $term = get_term_by('slug', 'on-sale', 'product_cat') ?: get_term_by('slug', 'stock', 'product_cat');
+            if ($term && !is_wp_error($term)) {
+                return [
+                    'term_id' => (int) $term->term_id,
+                    'info'    => [
+                        'id'            => (int) $term->term_id,
+                        'name'          => 'On Sale / Clearance',
+                        'slug'          => 'stock',
+                        'description'   => wp_strip_all_tags($term->description) ?: 'Discover discounted handcrafted singing bowls and artisanal items on special sale.',
+                        'rawDescription'=> $term->description,
+                        'parent'        => (int) $term->parent,
+                        'count'         => (int) $term->count,
+                        'image'         => null,
+                        'subcategories' => [],
+                        'isSpecial'     => true,
+                    ],
+                ];
+            }
+
             return [
                 'term_id' => null,
                 'info'    => [
                     'id'            => 0,
-                    'name'          => 'In Stock & Ready to Ship',
+                    'name'          => 'On Sale / Clearance',
                     'slug'          => 'stock',
-                    'description'   => 'Explore authentic handcrafted goods currently in stock and ready for immediate dispatch.',
+                    'description'   => 'Explore authentic handcrafted goods currently on special clearance.',
                     'parent'        => 0,
                     'count'         => 0,
                     'subcategories' => [],
@@ -301,13 +363,39 @@ class HIN_Catalog_Routes {
             ];
         }
 
-        // Regular WooCommerce product category
+        // Slug Aliases & Synonyms Mapping
+        $slug_aliases = [
+            'yoga-items'   => 'yoga-accessories',
+            'yoga'         => 'yoga-accessories',
+            'blankets'     => 'blanket',
+            'arrival'      => 'new-arrivals',
+            'stock'        => 'on-sale',
+            'sale'         => 'on-sale',
+        ];
+
+        if (isset($slug_aliases[$slug])) {
+            $slug = $slug_aliases[$slug];
+        }
+
+        // Regular WooCommerce product category (supports leaf slug from multi-segment path e.g. incense/ancient-tibetan)
         if (!empty($slug)) {
-            $term = get_term_by('slug', $slug, 'product_cat');
+            $search_slug = $slug;
+            if (strpos($slug, '/') !== false) {
+                $parts = array_filter(explode('/', trim($slug, '/')));
+                $search_slug = end($parts) ?: $slug;
+            }
+
+            if (isset($slug_aliases[$search_slug])) {
+                $search_slug = $slug_aliases[$search_slug];
+            }
+
+            $term = get_term_by('slug', $search_slug, 'product_cat')
+                 ?: get_term_by('slug', $slug, 'product_cat')
+                 ?: get_term_by('slug', rtrim($search_slug, 's'), 'product_cat');
 
             // Fallback: search by name without hyphen
             if (!$term) {
-                $name_guess = str_replace('-', ' ', $slug);
+                $name_guess = str_replace('-', ' ', $search_slug);
                 $term = get_term_by('name', $name_guess, 'product_cat');
             }
 
@@ -645,6 +733,80 @@ class HIN_Catalog_Routes {
                 'relatedProducts' => $related_products,
                 'reviews'         => $reviews,
             ]),
+        ], 200);
+    }
+
+    /**
+     * Predictive Instant Search Handler (Categories + Products).
+     *
+     * @route   GET /wp-json/handicraft/v1/search?q={query}&limit={limit}
+     * @param   WP_REST_Request $request
+     * @return  WP_REST_Response
+     */
+    public function handle_instant_search(WP_REST_Request $request): WP_REST_Response {
+        $query = trim($request->get_param('q') ?: $request->get_param('search') ?: '');
+        $limit = min(20, max(1, (int) ($request->get_param('limit') ?: 6)));
+        $is_wholesale = $this->is_wholesale_requester();
+
+        if (empty($query)) {
+            return new WP_REST_Response([
+                'success'    => true,
+                'query'      => '',
+                'total'      => 0,
+                'categories' => [],
+                'products'   => [],
+            ], 200);
+        }
+
+        // 1. Search matching product categories
+        $matching_categories = [];
+        $cat_terms = get_terms([
+            'taxonomy'   => 'product_cat',
+            'name__like' => $query,
+            'hide_empty' => true,
+            'number'     => 4,
+        ]);
+        if (!empty($cat_terms) && !is_wp_error($cat_terms)) {
+            foreach ($cat_terms as $ct) {
+                $matching_categories[] = [
+                    'id'    => (int) $ct->term_id,
+                    'name'  => html_entity_decode($ct->name, ENT_QUOTES, 'UTF-8'),
+                    'slug'  => $ct->slug,
+                    'count' => (int) $ct->count,
+                    'href'  => '/' . $ct->slug,
+                ];
+            }
+        }
+
+        // 2. Search matching products (title, description, excerpt, SKU)
+        $prod_query = new WP_Query([
+            'post_type'      => 'product',
+            'post_status'    => 'publish',
+            'posts_per_page' => $limit,
+            's'              => $query,
+            'orderby'        => 'relevance',
+        ]);
+
+        $total_found = (int) $prod_query->found_posts;
+        $products = [];
+
+        if ($prod_query->have_posts()) {
+            while ($prod_query->have_posts()) {
+                $prod_query->the_post();
+                $product = wc_get_product(get_the_ID());
+                if ($product && $product->is_visible()) {
+                    $products[] = $this->format_product($product, $is_wholesale);
+                }
+            }
+            wp_reset_postdata();
+        }
+
+        return new WP_REST_Response([
+            'success'    => true,
+            'query'      => $query,
+            'total'      => $total_found,
+            'categories' => $matching_categories,
+            'products'   => $products,
         ], 200);
     }
 
