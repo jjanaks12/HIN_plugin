@@ -23,6 +23,7 @@ require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-user-service.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-auth-routes.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-menu-routes.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-catalog-routes.php';
+require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-currency-routes.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-order-routes.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-documentation-viewer.php';
 
@@ -113,6 +114,9 @@ class HIN_Auth_Plugin {
 
         $catalog_routes = new HIN_Catalog_Routes();
         $catalog_routes->register_routes();
+
+        $currency_routes = new HIN_Currency_Routes();
+        $currency_routes->register_routes();
 
         $order_routes = new HIN_Order_Routes();
         $order_routes->register_routes();

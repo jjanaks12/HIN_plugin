@@ -140,6 +140,10 @@ class HIN_Order_Routes {
                 'type'     => 'string',
                 'required' => true,
             ],
+            'currency' => [
+                'type'     => 'string',
+                'required' => false,
+            ],
             'orderType' => [
                 'type'     => 'string',
                 'enum'     => ['wholesale', 'retail'],
@@ -236,7 +240,31 @@ class HIN_Order_Routes {
                 'phone'      => sanitize_text_field($customer_data['phone'] ?? ''),
             ], 'billing');
 
-            // Add Product Line Items with Accurate Pricing
+            // Determine transaction currency & fetch live exchange rate from YayCurrency at the exact time of order placement
+            $requested_currency = strtoupper(sanitize_text_field($request->get_param('currency') ?? ''));
+            if (empty($requested_currency)) {
+                $requested_currency = ($order_type === 'wholesale' || $country_header !== 'NP') ? 'USD' : 'NPR';
+            }
+
+            $exchange_rate = 1.0;
+            if ($requested_currency !== 'USD' && class_exists('Yay_Currency\Helpers\YayCurrencyHelper')) {
+                $yay_currencies = \Yay_Currency\Helpers\YayCurrencyHelper::converted_currency();
+                if (!empty($yay_currencies) && is_array($yay_currencies)) {
+                    foreach ($yay_currencies as $curr) {
+                        if (strtoupper($curr['currency'] ?? '') === $requested_currency) {
+                            if (isset($curr['rate'])) {
+                                $rate_val = is_array($curr['rate']) ? floatval($curr['rate']['value'] ?? 1.0) : floatval($curr['rate']);
+                                if ($rate_val > 0) {
+                                    $exchange_rate = $rate_val;
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Add Product Line Items with Locked Exchange Rate Pricing
             $total_weight = 0.0;
             foreach ($items_data as $item) {
                 $product_id = intval($item['productId']);
@@ -247,22 +275,27 @@ class HIN_Order_Routes {
                     continue;
                 }
 
-                // Calculate product unit price based on order type (wholesale vs retail)
+                // Calculate product base unit price (in USD) based on order type
                 $wholesale_price = get_post_meta($product_id, '_wholesale_price', true);
                 if ($order_type === 'wholesale' && !empty($wholesale_price) && is_numeric($wholesale_price)) {
-                    $unit_price = floatval($wholesale_price);
+                    $base_unit_price = floatval($wholesale_price);
                 } else {
-                    $unit_price = floatval($product->get_price());
+                    $base_unit_price = floatval($product->get_price());
                 }
 
+                // Convert and lock unit price in the customer's selected transaction currency
+                $effective_unit_price = round($base_unit_price * $exchange_rate, 2);
+
                 $item_id = $order->add_product($product, $qty, [
-                    'subtotal' => $unit_price * $qty,
-                    'total'    => $unit_price * $qty,
+                    'subtotal' => $effective_unit_price * $qty,
+                    'total'    => $effective_unit_price * $qty,
                 ]);
 
-                // Track item metadata
+                // Track item metadata for permanent audit record
                 if ($item_id) {
-                    wc_add_order_item_meta($item_id, '_effective_unit_price', $unit_price);
+                    wc_add_order_item_meta($item_id, '_base_unit_price_usd', $base_unit_price);
+                    wc_add_order_item_meta($item_id, '_effective_unit_price', $effective_unit_price);
+                    wc_add_order_item_meta($item_id, '_exchange_rate_applied', $exchange_rate);
                     wc_add_order_item_meta($item_id, '_order_type', $order_type);
                 }
 
@@ -272,9 +305,10 @@ class HIN_Order_Routes {
 
             // Add Shipping Line
             if (!empty($shipping_method)) {
-                $shipping_cost  = max(0, floatval($shipping_method['cost'] ?? 0));
-                $shipping_title = sanitize_text_field($shipping_method['methodTitle'] ?? 'Standard Courier');
-                $shipping_id    = sanitize_text_field($shipping_method['methodId'] ?? 'custom_shipping');
+                $shipping_cost_base = max(0, floatval($shipping_method['cost'] ?? 0));
+                $shipping_cost      = round($shipping_cost_base * $exchange_rate, 2);
+                $shipping_title     = sanitize_text_field($shipping_method['methodTitle'] ?? 'Standard Courier');
+                $shipping_id        = sanitize_text_field($shipping_method['methodId'] ?? 'custom_shipping');
 
                 $shipping_item = new WC_Order_Item_Shipping();
                 $shipping_item->set_method_title($shipping_title);
@@ -283,7 +317,7 @@ class HIN_Order_Routes {
                 $order->add_item($shipping_item);
             }
 
-            // Set Payment Method & Currency
+            // Set Payment Method & Locked Currency
             $payment_titles = [
                 'wire_transfer' => 'International Wire Transfer / SWIFT',
                 'card'          => 'Credit / Debit Card Payment',
@@ -295,15 +329,15 @@ class HIN_Order_Routes {
 
             $order->set_payment_method($payment_method);
             $order->set_payment_method_title($payment_title);
+            $order->set_currency($requested_currency);
 
-            $currency = ($order_type === 'wholesale' || $country_header !== 'NP') ? 'USD' : 'NPR';
-            $order->set_currency($currency);
-
-            // Record Meta for Order Classification
+            // Record Meta for Order Classification & Exchange Rate
             $order->update_meta_data('_order_type', $order_type);
             $order->update_meta_data('_is_wholesale', $order_type === 'wholesale' ? 'yes' : 'no');
             $order->update_meta_data('_country_code', $country_header);
             $order->update_meta_data('_total_weight_kg', round($total_weight, 2));
+            $order->update_meta_data('_exchange_rate', $exchange_rate);
+            $order->update_meta_data('_base_currency', 'USD');
 
             // Calculate totals & set pending payment status
             $order->calculate_totals();

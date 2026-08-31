@@ -20,6 +20,7 @@
 | `POST` | `/orders/checkout` | Create native WooCommerce order with dynamic pricing & shipping | No (Guest) / Optional Bearer |
 | `GET` | `/orders/{id}` | Fetch full order receipt & itemized lines | Guest (via `order_key`) or Owner Bearer |
 | `GET` | `/orders/my-orders` | Fetch paginated order history for authenticated user | **Yes** (`Bearer <token>`) |
+| `GET` | `/currencies` | Fetch active multi-currency options, exchange rates, and flags (YayCurrency integrated) | No |
 
 ---
 
@@ -931,4 +932,87 @@ Creates a native WooCommerce order with dynamic wholesale/retail pricing, calcul
 * **Method:** `GET`
 * **Headers:** `Authorization: Bearer <token>`
 * **Query Parameters:** `page` (default 1), `per_page` (default 10)
+
+---
+
+## 11. Get Currencies List & Exchange Rates (YayCurrency Integration)
+
+Fetches the active multi-currency options, dynamic exchange rates against base store currency (USD), currency symbols, formatting rules, and country flag URLs.
+
+* **URL:** `/wp-json/handicraft/v1/currencies`
+* **Method:** `GET`
+* **Authentication:** None (Public)
+
+### Response `200 OK`
+```json
+{
+  "success": true,
+  "baseCurrency": "USD",
+  "currencies": [
+    {
+      "code": "USD",
+      "name": "US Dollar",
+      "symbol": "$",
+      "rate": 1.0,
+      "isDefault": true,
+      "flag": "https://hin.test/wp-content/plugins/yaycurrency/assets/flags/us.svg",
+      "flagEmoji": "🇺🇸",
+      "currencyPosition": "left",
+      "thousandSeparator": ",",
+      "decimalSeparator": ".",
+      "numberDecimal": 2
+    },
+    {
+      "code": "EUR",
+      "name": "Euro",
+      "symbol": "€",
+      "rate": 0.92,
+      "isDefault": false,
+      "flag": "https://hin.test/wp-content/plugins/yaycurrency/assets/flags/eu.svg",
+      "flagEmoji": "🇪🇺",
+      "currencyPosition": "left",
+      "thousandSeparator": ",",
+      "decimalSeparator": ".",
+      "numberDecimal": 2
+    },
+    {
+      "code": "NPR",
+      "name": "Nepalese Rupee",
+      "symbol": "रू",
+      "rate": 133.5,
+      "isDefault": false,
+      "flag": "https://hin.test/wp-content/plugins/yaycurrency/assets/flags/np.svg",
+      "flagEmoji": "🇳🇵",
+      "currencyPosition": "left",
+      "thousandSeparator": ",",
+      "decimalSeparator": ".",
+      "numberDecimal": 0
+    }
+  ]
+}
+```
+
+### TypeScript Frontend Contract
+```typescript
+export interface CurrencyItem {
+  code: string
+  name: string
+  symbol: string
+  rate: number
+  isDefault: boolean
+  flag: string
+  flagEmoji: string
+  currencyPosition: string
+  thousandSeparator: string
+  decimalSeparator: string
+  numberDecimal: number
+}
+
+export interface CurrenciesResponse {
+  success: boolean
+  baseCurrency: string
+  currencies: CurrencyItem[]
+}
+```
+
 
