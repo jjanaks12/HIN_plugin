@@ -148,6 +148,7 @@ class HIN_User_Service {
             'roles'        => $roles,
             'isWholesale'  => $is_wholesale,
             'companyName'  => get_user_meta($user->ID, 'billing_company', true) ?: '',
+            'taxId'        => get_user_meta($user->ID, '_tax_id', true) ?: '',
             'country'      => get_user_meta($user->ID, 'billing_country', true) ?: '',
             'phone'        => get_user_meta($user->ID, 'billing_phone', true) ?: '',
             'registeredAt' => $user->user_registered,
