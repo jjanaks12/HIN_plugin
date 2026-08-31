@@ -17,6 +17,9 @@
 | `GET` | `/products` | Fetch paginated catalog products with multi-criteria sorting & search | No |
 | `GET` | `/products/{slug}` | Fetch single product detail, attributes, gallery, reviews, & related products | No |
 | `GET` | `/search` | Predictive instant autocomplete search for products & categories | No |
+| `POST` | `/orders/checkout` | Create native WooCommerce order with dynamic pricing & shipping | No (Guest) / Optional Bearer |
+| `GET` | `/orders/{id}` | Fetch full order receipt & itemized lines | Guest (via `order_key`) or Owner Bearer |
+| `GET` | `/orders/my-orders` | Fetch paginated order history for authenticated user | **Yes** (`Bearer <token>`) |
 
 ---
 
@@ -786,3 +789,146 @@ export interface InstantSearchResponse {
   products: ProductItem[];
 }
 ```
+
+---
+
+## 8. Create Checkout Order
+
+Creates a native WooCommerce order with dynamic wholesale/retail pricing, calculated shipping rate, billing and shipping addresses, and optional customer note.
+
+* **URL:** `/wp-json/handicraft/v1/orders/checkout`
+* **Method:** `POST`
+* **Headers:** `Content-Type: application/json`, `X-Country-Code: US` (optional), `Authorization: Bearer <token>` (optional)
+
+### Request Body
+```json
+{
+  "customer": {
+    "email": "customer@example.com",
+    "phone": "+14155552671",
+    "firstName": "John",
+    "lastName": "Doe"
+  },
+  "shipping": {
+    "firstName": "John",
+    "lastName": "Doe",
+    "address1": "742 Evergreen Terrace",
+    "address2": "Apt 4B",
+    "city": "Springfield",
+    "state": "OR",
+    "postcode": "97477",
+    "country": "US"
+  },
+  "billing": {
+    "firstName": "John",
+    "lastName": "Doe",
+    "address1": "742 Evergreen Terrace",
+    "address2": "Apt 4B",
+    "city": "Springfield",
+    "state": "OR",
+    "postcode": "97477",
+    "country": "US"
+  },
+  "items": [
+    { "productId": 101, "quantity": 2 },
+    { "productId": 105, "quantity": 1 }
+  ],
+  "shippingMethod": {
+    "methodId": "express_international",
+    "methodTitle": "Worldwide Express (DHL/FedEx)",
+    "cost": 42.00
+  },
+  "paymentMethod": "wire_transfer",
+  "orderType": "wholesale",
+  "customerNote": "Please pack with extra cushioning."
+}
+```
+
+### Response `201 Created`
+```json
+{
+  "success": true,
+  "message": "Order placed successfully.",
+  "order": {
+    "id": 482,
+    "orderNumber": "482",
+    "orderKey": "wc_order_64e8b91a2b3c4",
+    "status": "pending",
+    "orderType": "wholesale",
+    "isWholesale": true,
+    "currency": "USD",
+    "dateCreated": "2026-08-31T20:55:00+00:00",
+    "total": 342.00,
+    "subtotal": 300.00,
+    "shippingTotal": 42.00,
+    "discountTotal": 0.00,
+    "paymentMethod": {
+      "id": "wire_transfer",
+      "title": "International Wire Transfer / SWIFT"
+    },
+    "shippingMethod": {
+      "title": "Worldwide Express (DHL/FedEx)",
+      "cost": 42.00
+    },
+    "customer": {
+      "email": "customer@example.com",
+      "phone": "+14155552671",
+      "firstName": "John",
+      "lastName": "Doe"
+    },
+    "shippingAddress": {
+      "firstName": "John",
+      "lastName": "Doe",
+      "address1": "742 Evergreen Terrace",
+      "address2": "Apt 4B",
+      "city": "Springfield",
+      "state": "OR",
+      "postcode": "97477",
+      "country": "US"
+    },
+    "billingAddress": {
+      "firstName": "John",
+      "lastName": "Doe",
+      "address1": "742 Evergreen Terrace",
+      "address2": "Apt 4B",
+      "city": "Springfield",
+      "state": "OR",
+      "postcode": "97477",
+      "country": "US"
+    },
+    "items": [
+      {
+        "id": 120,
+        "productId": 101,
+        "name": "Handmade 7-Metal Tibetan Singing Bowl Set",
+        "quantity": 2,
+        "unitPrice": 120.00,
+        "subtotal": 240.00,
+        "total": 240.00,
+        "sku": "SB-TIB-01",
+        "image": "https://hin.test/wp-content/uploads/2026/08/singing-bowl.jpg"
+      }
+    ],
+    "customerNote": "Please pack with extra cushioning."
+  }
+}
+```
+
+---
+
+## 9. Get Single Order Receipt
+
+* **URL:** `/wp-json/handicraft/v1/orders/{id}`
+* **Method:** `GET`
+* **Query Parameters:** `order_key` (Required for guest users)
+* **Headers:** `Authorization: Bearer <token>` (Required if requesting without `order_key` as account owner)
+
+---
+
+## 10. Get My Orders
+
+* **URL:** `/wp-json/handicraft/v1/orders/my-orders`
+* **Method:** `GET`
+* **Headers:** `Authorization: Bearer <token>`
+* **Query Parameters:** `page` (default 1), `per_page` (default 10)
+
