@@ -583,6 +583,8 @@ class HIN_Catalog_Routes {
             'onSale'           => $product->is_on_sale(),
             'inStock'          => $product->is_in_stock(),
             'stockQuantity'    => $product->get_stock_quantity(),
+            'retailQuantityStep'    => max(1, (int) (get_post_meta($id, '_retail_quantity_step', true) ?: get_option('hin_retail_quantity_step', 1))),
+            'wholesaleQuantityStep' => max(1, (int) (get_post_meta($id, '_wholesale_quantity_step', true) ?: get_option('hin_wholesale_quantity_step', 1))),
             'rating'           => floatval($product->get_average_rating()),
             'reviewCount'      => (int) $product->get_review_count(),
             'images'           => $images,

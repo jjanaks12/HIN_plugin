@@ -26,6 +26,7 @@ require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-menu-routes.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-catalog-routes.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-currency-routes.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-order-routes.php';
+require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-wholesale-settings.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-documentation-viewer.php';
 
 /**
@@ -66,6 +67,10 @@ class HIN_Auth_Plugin {
         // Initialize CORS Handler
         $cors_handler = new HIN_CORS_Handler();
         $cors_handler->init();
+
+        // Initialize Wholesale Settings
+        $wholesale_settings = new HIN_Wholesale_Settings();
+        $wholesale_settings->init();
 
         // Initialize /documentation Endpoint Viewer
         $doc_viewer = new HIN_Documentation_Viewer();
