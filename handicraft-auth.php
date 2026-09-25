@@ -20,6 +20,7 @@ define('HIN_AUTH_PLUGIN_DIR', plugin_dir_path(__FILE__));
 // Require Core Modules
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-jwt-handler.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-user-service.php';
+require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-cors-handler.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-auth-routes.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-menu-routes.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-catalog-routes.php';
@@ -62,14 +63,13 @@ class HIN_Auth_Plugin {
         // Register REST API endpoints
         add_action('rest_api_init', [$this, 'register_rest_routes']);
 
+        // Initialize CORS Handler
+        $cors_handler = new HIN_CORS_Handler();
+        $cors_handler->init();
+
         // Initialize /documentation Endpoint Viewer
         $doc_viewer = new HIN_Documentation_Viewer();
         $doc_viewer->init();
-
-        // Headless CORS Headers for Nuxt 3 frontend
-        add_action('init', [$this, 'handle_cors_preflight']);
-        add_filter('allowed_http_origins', [$this, 'allow_custom_http_origins']);
-        add_action('rest_api_init', [$this, 'setup_cors_headers'], 15);
     }
 
     /**
@@ -124,66 +124,6 @@ class HIN_Auth_Plugin {
 
     public function register_rest_routes() {
         $this->register_routes();
-    }
-
-    /**
-     * Whitelist incoming Origin in WordPress allowed HTTP origins.
-     *
-     * @param array $origins
-     * @return array
-     */
-    public function allow_custom_http_origins(array $origins): array {
-        if (!empty($_SERVER['HTTP_ORIGIN'])) {
-            $origins[] = sanitize_text_field(wp_unslash($_SERVER['HTTP_ORIGIN']));
-        }
-        return array_values(array_unique(array_filter($origins)));
-    }
-
-    /**
-     * Intercept and handle CORS preflight OPTIONS requests early.
-     */
-    public function handle_cors_preflight() {
-        if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-            $this->send_cors_headers();
-            status_header(200);
-            exit;
-        }
-    }
-
-    /**
-     * Send CORS headers.
-     */
-    public function send_cors_headers() {
-        if (headers_sent()) {
-            return;
-        }
-
-        $origin = !empty($_SERVER['HTTP_ORIGIN']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_ORIGIN'])) : '';
-        if ($origin) {
-            header('Access-Control-Allow-Origin: ' . esc_url_raw($origin));
-            header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
-            header('Access-Control-Allow-Credentials: true');
-            
-            if (isset($_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS'])) {
-                header("Access-Control-Allow-Headers: {$_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS']}");
-            } else {
-                header('Access-Control-Allow-Headers: Authorization, Content-Type, X-WP-Nonce, X-Country-Code, X-Requested-With, Accept, Origin');
-            }
-            
-            header('Access-Control-Expose-Headers: X-WP-Total, X-WP-TotalPages, Link');
-            header('Access-Control-Max-Age: 86400');
-        }
-    }
-
-    /**
-     * Enable CORS for Headless Nuxt frontend on REST requests.
-     */
-    public function setup_cors_headers() {
-        remove_filter('rest_pre_serve_request', 'rest_send_cors_headers');
-        add_filter('rest_pre_serve_request', function ($value) {
-            $this->send_cors_headers();
-            return $value;
-        });
     }
 }
 

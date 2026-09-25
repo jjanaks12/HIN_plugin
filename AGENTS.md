@@ -10,7 +10,7 @@ Whenever creating or modifying any REST API endpoint/route, agents MUST:
   * Fully document every route handler: HTTP method, path, required headers (`Authorization`, `X-Country-Code`), query/body arguments (type, required, validation rules, description), and all response codes (`200`, `201`, `400`, `401`, `403`, `500`) with example response schemas.
   * Use WordPress `register_rest_route` parameter schemas (`description`, `type`, `required`, `validate_callback`, `sanitize_callback`).
 * **Maintain API Documentation File:**
-  * Keep [`API_DOCUMENTATION.md`](file:///Users/janakshrestha/Documents/2026/08August/handcrafts_in_nepal/site/wp-content/plugins/handicraft-auth/API_DOCUMENTATION.md) updated with:
+  * Keep `API_DOCUMENTATION.md` updated with:
     * Endpoint URL & HTTP method.
     * Headers & Authentication requirements.
     * Request Body JSON schema with examples.
