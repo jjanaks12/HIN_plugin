@@ -291,41 +291,7 @@ class HIN_Catalog_Routes {
      * Resolve category metadata and subcategories.
      */
     private function resolve_category_info(?string $slug): array {
-        // Special 1: Arrival (New Arrivals) - Link to WooCommerce category if exists
-        if ($slug === 'arrival' || $slug === 'new-arrivals') {
-            $term = get_term_by('slug', 'new-arrivals', 'product_cat') ?: get_term_by('slug', 'arrival', 'product_cat');
-            if ($term && !is_wp_error($term)) {
-                return [
-                    'term_id' => (int) $term->term_id,
-                    'info'    => [
-                        'id'            => (int) $term->term_id,
-                        'name'          => html_entity_decode($term->name, ENT_QUOTES, 'UTF-8'),
-                        'slug'          => $term->slug,
-                        'description'   => wp_strip_all_tags($term->description) ?: 'Discover our newest handcrafted collections made with authentic traditions and spiritual care in Nepal.',
-                        'rawDescription'=> $term->description,
-                        'parent'        => (int) $term->parent,
-                        'count'         => (int) $term->count,
-                        'image'         => null,
-                        'subcategories' => [],
-                        'isSpecial'     => false,
-                    ],
-                ];
-            }
 
-            return [
-                'term_id' => null,
-                'info'    => [
-                    'id'            => 0,
-                    'name'          => 'New Arrivals',
-                    'slug'          => 'new-arrivals',
-                    'description'   => 'Discover our newest handcrafted collections made with authentic traditions and spiritual care in Nepal.',
-                    'parent'        => 0,
-                    'count'         => 0,
-                    'subcategories' => [],
-                    'isSpecial'     => true,
-                ],
-            ];
-        }
 
         // Special 2: Stock (On Sale / Clearance Items) - Link to on-sale category
         if ($slug === 'stock' || $slug === 'on-sale' || $slug === 'sale') {

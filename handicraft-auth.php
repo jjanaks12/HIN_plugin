@@ -21,6 +21,7 @@ define('HIN_AUTH_PLUGIN_DIR', plugin_dir_path(__FILE__));
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-jwt-handler.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-user-service.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-cors-handler.php';
+require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-cors-settings.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-auth-routes.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-menu-routes.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-catalog-routes.php';
@@ -67,6 +68,10 @@ class HIN_Auth_Plugin {
         // Initialize CORS Handler
         $cors_handler = new HIN_CORS_Handler();
         $cors_handler->init();
+
+        // Initialize CORS Settings
+        $cors_settings = new HIN_CORS_Settings();
+        $cors_settings->init();
 
         // Initialize Wholesale Settings
         $wholesale_settings = new HIN_Wholesale_Settings();

@@ -55,18 +55,34 @@ class HIN_CORS_Handler {
 
         $origin = !empty($_SERVER['HTTP_ORIGIN']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_ORIGIN'])) : '';
         if ($origin) {
-            header('Access-Control-Allow-Origin: ' . esc_url_raw($origin));
-            header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
-            header('Access-Control-Allow-Credentials: true');
-            
-            if (isset($_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS'])) {
-                header("Access-Control-Allow-Headers: {$_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS']}");
-            } else {
-                header('Access-Control-Allow-Headers: Authorization, Content-Type, X-WP-Nonce, X-Country-Code, X-Requested-With, Accept, Origin');
+            $allowed_origins = get_option('hin_cors_allowed_origins', []);
+            $is_allowed = false;
+
+            if (in_array($origin, $allowed_origins, true)) {
+                $is_allowed = true;
             }
-            
-            header('Access-Control-Expose-Headers: X-WP-Total, X-WP-TotalPages, Link');
-            header('Access-Control-Max-Age: 86400');
+
+            if ($is_allowed) {
+                header('Access-Control-Allow-Origin: ' . esc_url_raw($origin));
+                header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
+                header('Access-Control-Allow-Credentials: true');
+                
+                if (isset($_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS'])) {
+                    header("Access-Control-Allow-Headers: {$_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS']}");
+                } else {
+                    header('Access-Control-Allow-Headers: Authorization, Content-Type, X-WP-Nonce, X-Country-Code, X-Requested-With, Accept, Origin');
+                }
+                
+                header('Access-Control-Expose-Headers: X-WP-Total, X-WP-TotalPages, Link');
+                header('Access-Control-Max-Age: 86400');
+            } else {
+                // Log unauthorized origin
+                $pending_origins = get_option('hin_cors_pending_origins', []);
+                if (!in_array($origin, $pending_origins, true)) {
+                    $pending_origins[] = $origin;
+                    update_option('hin_cors_pending_origins', array_unique($pending_origins));
+                }
+            }
         }
         
         // Always add Vary: Origin so cached SSR responses don't break browser CORS
