@@ -163,7 +163,13 @@ class HIN_Auth_Plugin {
             header('Access-Control-Allow-Origin: ' . esc_url_raw($origin));
             header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
             header('Access-Control-Allow-Credentials: true');
-            header('Access-Control-Allow-Headers: Authorization, Content-Type, X-WP-Nonce, X-Country-Code, X-Requested-With, Accept, Origin');
+            
+            if (isset($_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS'])) {
+                header("Access-Control-Allow-Headers: {$_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS']}");
+            } else {
+                header('Access-Control-Allow-Headers: Authorization, Content-Type, X-WP-Nonce, X-Country-Code, X-Requested-With, Accept, Origin');
+            }
+            
             header('Access-Control-Expose-Headers: X-WP-Total, X-WP-TotalPages, Link');
             header('Access-Control-Max-Age: 86400');
         }
