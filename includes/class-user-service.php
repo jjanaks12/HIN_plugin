@@ -62,8 +62,8 @@ class HIN_User_Service {
         $email      = sanitize_email($data['email'] ?? '');
         $username   = sanitize_user($data['username'] ?? '');
         $password   = $data['password'] ?? '';
-        $first_name = sanitize_text_field($data['first_name'] ?? '');
-        $last_name  = sanitize_text_field($data['last_name'] ?? '');
+        $first_name = sanitize_text_field($data['firstName'] ?? $data['first_name'] ?? '');
+        $last_name  = sanitize_text_field($data['lastName'] ?? $data['last_name'] ?? '');
         $role       = sanitize_key($data['role'] ?? 'customer');
 
         // Validation
@@ -112,16 +112,65 @@ class HIN_User_Service {
         }
 
         // Optional B2B / Wholesale metadata
-        if (!empty($data['company_name'])) {
-            update_user_meta($user_id, 'billing_company', sanitize_text_field($data['company_name']));
+        $company_name = $data['companyName'] ?? $data['company_name'] ?? '';
+        if (!empty($company_name)) {
+            update_user_meta($user_id, 'billing_company', sanitize_text_field($company_name));
         }
-        if (!empty($data['tax_id'])) {
-            update_user_meta($user_id, '_tax_id', sanitize_text_field($data['tax_id']));
+        
+        $tax_id = $data['taxId'] ?? $data['tax_id'] ?? '';
+        if (!empty($tax_id)) {
+            update_user_meta($user_id, '_tax_id', sanitize_text_field($tax_id));
         }
         if (!empty($data['phone'])) {
             update_user_meta($user_id, 'billing_phone', sanitize_text_field($data['phone']));
         }
         if (!empty($data['country'])) {
+            update_user_meta($user_id, 'billing_country', sanitize_text_field($data['country']));
+        }
+
+        return get_user_by('id', $user_id);
+    }
+
+    /**
+     * Update user profile data.
+     *
+     * @param int $user_id
+     * @param array $data
+     * @return WP_User|WP_Error
+     */
+    public static function update_user(int $user_id, array $data) {
+        $user = get_user_by('id', $user_id);
+        if (!$user) {
+            return new WP_Error('user_not_found', 'User not found.', ['status' => 404]);
+        }
+
+        $userdata = ['ID' => $user_id];
+
+        if (isset($data['firstName']) || isset($data['first_name'])) {
+            $userdata['first_name'] = sanitize_text_field($data['firstName'] ?? $data['first_name']);
+        }
+        if (isset($data['lastName']) || isset($data['last_name'])) {
+            $userdata['last_name'] = sanitize_text_field($data['lastName'] ?? $data['last_name']);
+        }
+
+        if (count($userdata) > 1) {
+            $userdata['display_name'] = trim(($userdata['first_name'] ?? $user->first_name) . ' ' . ($userdata['last_name'] ?? $user->last_name)) ?: $user->user_login;
+            $result = wp_update_user($userdata);
+            if (is_wp_error($result)) {
+                return $result;
+            }
+        }
+
+        if (isset($data['companyName']) || isset($data['company_name'])) {
+            update_user_meta($user_id, 'billing_company', sanitize_text_field($data['companyName'] ?? $data['company_name']));
+        }
+        if (isset($data['taxId']) || isset($data['tax_id'])) {
+            update_user_meta($user_id, '_tax_id', sanitize_text_field($data['taxId'] ?? $data['tax_id']));
+        }
+        if (isset($data['phone'])) {
+            update_user_meta($user_id, 'billing_phone', sanitize_text_field($data['phone']));
+        }
+        if (isset($data['country'])) {
             update_user_meta($user_id, 'billing_country', sanitize_text_field($data['country']));
         }
 

@@ -144,9 +144,16 @@ class HIN_Auth_Routes {
          * @errors  401 Unauthorized, 404 Not Found
          */
         register_rest_route(self::NAMESPACE, '/auth/me', [
-            'methods'             => WP_REST_Server::READABLE,
-            'callback'            => [$this, 'handle_me'],
-            'permission_callback' => [$this, 'check_authenticated_permission'],
+            [
+                'methods'             => WP_REST_Server::READABLE,
+                'callback'            => [$this, 'handle_me'],
+                'permission_callback' => [$this, 'check_authenticated_permission'],
+            ],
+            [
+                'methods'             => WP_REST_Server::EDITABLE,
+                'callback'            => [$this, 'handle_update_me'],
+                'permission_callback' => [$this, 'check_authenticated_permission'],
+            ]
         ]);
     }
 
@@ -278,6 +285,35 @@ class HIN_Auth_Routes {
 
         return new WP_REST_Response([
             'success' => true,
+            'user'    => HIN_User_Service::format_user_profile($user),
+        ], 200);
+    }
+
+    /**
+     * Handle Update Me Request (Update Profile).
+     *
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
+     */
+    public function handle_update_me(WP_REST_Request $request): WP_REST_Response {
+        $current_user_id = get_current_user_id();
+        $params = $request->get_params();
+
+        // Prevent updating sensitive fields via this endpoint
+        unset($params['email'], $params['password'], $params['username'], $params['role']);
+
+        $user = HIN_User_Service::update_user($current_user_id, $params);
+        if (is_wp_error($user)) {
+            return new WP_REST_Response([
+                'success' => false,
+                'code'    => $user->get_error_code(),
+                'message' => $user->get_error_message(),
+            ], $user->get_error_data()['status'] ?? 400);
+        }
+
+        return new WP_REST_Response([
+            'success' => true,
+            'message' => 'Profile updated successfully.',
             'user'    => HIN_User_Service::format_user_profile($user),
         ], 200);
     }

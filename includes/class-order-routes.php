@@ -199,6 +199,47 @@ class HIN_Order_Routes {
         $is_intl = strtoupper($country_header) !== 'NP';
         $order_type = ($requested_type === 'wholesale' || $is_user_wholesale || ($is_intl && $requested_type !== 'retail')) ? 'wholesale' : 'retail';
 
+        // Pre-flight check: validate quantity steps and minimum order amounts
+        $global_wholesale_step = max(1, (int) get_option('hin_wholesale_quantity_step', 1));
+        $global_retail_step    = max(1, (int) get_option('hin_retail_quantity_step', 1));
+        $wholesale_min_amount  = (float) get_option('hin_wholesale_min_amount', 10);
+        $base_subtotal         = 0.0;
+
+        foreach ($items_data as $item) {
+            $product_id = intval($item['productId'] ?? 0);
+            $qty        = max(1, intval($item['quantity'] ?? 1));
+            $product    = wc_get_product($product_id);
+
+            if (!$product) continue;
+
+            if ($order_type === 'wholesale') {
+                $step = (int) (get_post_meta($product_id, '_wholesale_quantity_step', true) ?: $global_wholesale_step);
+                $step = max(1, $step);
+                $wholesale_price = get_post_meta($product_id, '_wholesale_price', true);
+                $base_unit_price = (!empty($wholesale_price) && is_numeric($wholesale_price)) ? floatval($wholesale_price) : floatval($product->get_price());
+            } else {
+                $step = (int) (get_post_meta($product_id, '_retail_quantity_step', true) ?: $global_retail_step);
+                $step = max(1, $step);
+                $base_unit_price = floatval($product->get_price());
+            }
+
+            if ($qty % $step !== 0 || $qty < $step) {
+                return new WP_REST_Response([
+                    'success' => false,
+                    'message' => sprintf(__('Product "%s" must be ordered in increments of %d.', 'handicraft-auth'), $product->get_name(), $step),
+                ], 400);
+            }
+
+            $base_subtotal += ($base_unit_price * $qty);
+        }
+
+        if ($order_type === 'wholesale' && $base_subtotal < $wholesale_min_amount) {
+            return new WP_REST_Response([
+                'success' => false,
+                'message' => sprintf(__('Minimum order amount for wholesale is $%s. Please add more items to your cart.', 'handicraft-auth'), number_format($wholesale_min_amount, 2)),
+            ], 400);
+        }
+
         try {
             // Initialize Order
             $order = wc_create_order([
