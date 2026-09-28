@@ -380,9 +380,15 @@ class HIN_Order_Routes {
             $order->update_meta_data('_exchange_rate', $exchange_rate);
             $order->update_meta_data('_base_currency', 'USD');
 
-            // Calculate totals & set pending payment status
+            // Calculate totals & set appropriate order status
             $order->calculate_totals();
-            $order->set_status('pending', __('Order placed via Headless Nuxt Storefront.', 'handicraft-auth'));
+            
+            if ($order_type === 'wholesale') {
+                $order->set_status('on-hold', __('Wholesale quote request submitted via Headless Nuxt Storefront.', 'handicraft-auth'));
+            } else {
+                $order->set_status('pending', __('Order placed via Headless Nuxt Storefront.', 'handicraft-auth'));
+            }
+            
             $order->save();
 
             // Format response
@@ -449,6 +455,8 @@ class HIN_Order_Routes {
      */
     public function get_my_orders(WP_REST_Request $request): WP_REST_Response {
         $user_id  = get_current_user_id();
+        $user     = get_userdata($user_id);
+        $email    = $user ? $user->user_email : '';
         $page     = max(1, intval($request->get_param('page') ?: 1));
         $per_page = max(1, min(50, intval($request->get_param('per_page') ?: 10)));
 
@@ -457,12 +465,13 @@ class HIN_Order_Routes {
         }
 
         $args = [
-            'customer_id' => $user_id,
+            'customer'    => array_filter([$user_id, $email]),
             'page'        => $page,
             'limit'       => $per_page,
             'paginate'    => true,
             'orderby'     => 'date',
             'order'       => 'DESC',
+            'status'      => 'any',
         ];
 
         $results = wc_get_orders($args);

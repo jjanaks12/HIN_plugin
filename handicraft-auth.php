@@ -61,6 +61,7 @@ class HIN_Auth_Plugin {
 
         // Authenticate requests via JWT Bearer token
         add_filter('determine_current_user', ['HIN_JWT_Handler', 'determine_current_user'], 20);
+        add_filter('rest_authentication_errors', ['HIN_JWT_Handler', 'rest_authentication_errors'], 101);
 
         // Register REST API endpoints
         add_action('rest_api_init', [$this, 'register_rest_routes']);

@@ -154,6 +154,11 @@ class HIN_JWT_Handler {
     }
 
     /**
+     * Store authentication error to pass to rest_authentication_errors.
+     */
+    public static $auth_error = null;
+
+    /**
      * Hook into determine_current_user to authenticate WP REST requests with Bearer tokens.
      *
      * @param int|false $user_id
@@ -171,6 +176,7 @@ class HIN_JWT_Handler {
 
         $validation = self::validate_token($token);
         if (is_wp_error($validation)) {
+            self::$auth_error = $validation;
             return false;
         }
 
@@ -178,6 +184,16 @@ class HIN_JWT_Handler {
         $user = get_user_by('id', $user_id_from_token);
 
         return $user ? $user->ID : false;
+    }
+
+    /**
+     * Hook into rest_authentication_errors to return specific JWT errors (like expired tokens) to the frontend.
+     */
+    public static function rest_authentication_errors($result) {
+        if (!empty(self::$auth_error) && is_wp_error(self::$auth_error)) {
+            return self::$auth_error;
+        }
+        return $result;
     }
 
     /**
