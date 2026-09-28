@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Auth REST API Routes
  *
@@ -13,14 +14,30 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-class HIN_Auth_Routes {
+class HIN_Auth_Routes
+{
 
     const NAMESPACE = 'handicraft/v1';
 
     /**
      * Register all REST API routes for Handicraft Auth.
      */
-    public function register_routes() {
+    public function register_routes()
+    {
+
+        register_rest_route(self::NAMESPACE, '/auth/refresh', [
+            'methods'             => WP_REST_Server::CREATABLE,
+            'callback'            => [$this, 'handle_refresh'],
+            'permission_callback' => '__return_true',
+            'args'                => [
+                'token' => [
+                    'description'       => 'The active refresh token string',
+                    'required'          => true,
+                    'type'              => 'string',
+                    'sanitize_callback' => 'sanitize_text_field',
+                ],
+            ],
+        ]);
 
         /**
          * @route   POST /wp-json/handicraft/v1/auth/login
@@ -163,11 +180,13 @@ class HIN_Auth_Routes {
      * @param WP_REST_Request $request
      * @return WP_REST_Response
      */
-    public function handle_login(WP_REST_Request $request): WP_REST_Response {
+    public function handle_login(WP_REST_Request $request): WP_REST_Response
+    {
         $username = $request->get_param('username');
         $password = $request->get_param('password');
 
         $user = HIN_User_Service::authenticate($username, $password);
+
         if (is_wp_error($user)) {
             return new WP_REST_Response([
                 'success' => false,
@@ -179,11 +198,24 @@ class HIN_Auth_Routes {
         $token = HIN_JWT_Handler::generate_token($user);
         $profile = HIN_User_Service::format_user_profile($user);
 
+        $expiration = 30 * DAY_IN_SECONDS;
+
+        // 1. Generate a secure random string for the refresh token
+        $refresh_token = bin2hex(random_bytes(32));
+        // 2. Hash it for storage (so if Redis is compromised, hackers can't use the raw token)
+        $hashed_token = hash('sha256', $refresh_token);
+        // 3. Store in Redis via Transients API for 30 days (30 * 24 * 60 * 60)
+        set_transient('hin_refresh_' . $hashed_token, $user->ID, $expiration);
+
         return new WP_REST_Response([
-            'success'   => true,
-            'token'     => $token,
+            'success' => true,
+            'token' => [
+                'accessToken' => $token,
+                'expiresIn' => $expiration,
+                'refreshToken' => $refresh_token,
+            ],
             'tokenType' => 'Bearer',
-            'user'      => $profile,
+            'user' => $profile,
         ], 200);
     }
 
@@ -193,7 +225,8 @@ class HIN_Auth_Routes {
      * @param WP_REST_Request $request
      * @return WP_REST_Response
      */
-    public function handle_register(WP_REST_Request $request): WP_REST_Response {
+    public function handle_register(WP_REST_Request $request): WP_REST_Response
+    {
         $params = $request->get_params();
 
         $user = HIN_User_Service::register($params);
@@ -223,7 +256,8 @@ class HIN_Auth_Routes {
      * @param WP_REST_Request $request
      * @return WP_REST_Response
      */
-    public function handle_validate(WP_REST_Request $request): WP_REST_Response {
+    public function handle_validate(WP_REST_Request $request): WP_REST_Response
+    {
         $token = HIN_JWT_Handler::get_token_from_request();
 
         if (!$token) {
@@ -272,7 +306,8 @@ class HIN_Auth_Routes {
      *
      * @return WP_REST_Response
      */
-    public function handle_me(): WP_REST_Response {
+    public function handle_me(): WP_REST_Response
+    {
         $current_user_id = get_current_user_id();
         $user = get_user_by('id', $current_user_id);
 
@@ -295,7 +330,8 @@ class HIN_Auth_Routes {
      * @param WP_REST_Request $request
      * @return WP_REST_Response
      */
-    public function handle_update_me(WP_REST_Request $request): WP_REST_Response {
+    public function handle_update_me(WP_REST_Request $request): WP_REST_Response
+    {
         $current_user_id = get_current_user_id();
         $params = $request->get_params();
 
@@ -323,7 +359,45 @@ class HIN_Auth_Routes {
      *
      * @return bool
      */
-    public function check_authenticated_permission(): bool {
+    public function check_authenticated_permission(): bool
+    {
         return is_user_logged_in();
+    }
+
+    /**
+     * Handle Refresh Token Request.
+     *
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
+     */
+    public function handle_refresh(WP_REST_Request $request): WP_REST_Response
+    {
+        $refresh_token = $request->get_param('token');
+        $hashed_token = hash('sha256', $refresh_token);
+
+        // 1. Check Redis for the token
+        $user_id = get_transient('hin_refresh_' . $hashed_token);
+
+        if (!$user_id) {
+            return new WP_REST_Response(['message' => 'Invalid or expired refresh token'], 401);
+        }
+
+        $user = get_user_by('id', $user_id);
+
+        // 2. Generate a new Access Token
+        $new_access_token = HIN_JWT_Handler::generate_token($user);
+
+        // 3. (Optional) Implement Token Rotation by deleting the old refresh token and generating a new one
+        delete_transient('hin_refresh_' . $hashed_token);
+        $new_refresh_token = bin2hex(random_bytes(32));
+        set_transient('hin_refresh_' . hash('sha256', $new_refresh_token), $user->ID, 30 * DAY_IN_SECONDS);
+
+        return new WP_REST_Response([
+            'success' => true,
+            'token' => [
+                'accessToken' => $new_access_token,
+                'refreshToken' => $new_refresh_token
+            ]
+        ], 200);
     }
 }
