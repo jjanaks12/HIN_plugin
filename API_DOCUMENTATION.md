@@ -10,6 +10,7 @@
 | :--- | :--- | :--- | :--- |
 | `POST` | `/auth/login` | Authenticate user & issue JWT token | No |
 | `POST` | `/auth/register` | Register new customer or wholesale user & issue JWT token | No |
+| `POST` | `/auth/refresh` | Refresh an expired access token using a refresh token | No |
 | `POST` | `/auth/validate` | Verify JWT token validity | No (or Bearer header) |
 | `GET` | `/auth/me` | Fetch currently authenticated user profile | **Yes** (`Bearer <token>`) |
 | `GET` | `/menus` | Fetch navigation menus tree by location or slug | No |
@@ -45,7 +46,11 @@ Authenticates user credentials and returns a signed JSON Web Token (JWT) along w
 ```json
 {
   "success": true,
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "expiresIn": 2592000,
+    "refreshToken": "48b6f3a3f..."
+  },
   "tokenType": "Bearer",
   "user": {
     "id": 12,
@@ -90,10 +95,16 @@ export interface UserProfile {
   registeredAt: string;
 }
 
+export interface AuthTokenResponse {
+  accessToken: string;
+  expiresIn: number;
+  refreshToken: string;
+}
+
 export interface AuthResponse {
   success: boolean;
   message?: string;
-  token: string;
+  token: AuthTokenResponse;
   tokenType: 'Bearer';
   user: UserProfile;
 }
@@ -143,7 +154,11 @@ Registers a new user account (Customer B2C or Wholesale B2B). Automatically sign
 {
   "success": true,
   "message": "Account registered successfully.",
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "expiresIn": 2592000,
+    "refreshToken": "48b6f3a3f..."
+  },
   "tokenType": "Bearer",
   "user": {
     "id": 13,
@@ -184,7 +199,7 @@ export interface RegisterPayload {
 export interface RegisterResponse {
   success: boolean;
   message: string;
-  token: string;
+  token: AuthTokenResponse;
   tokenType: 'Bearer';
   user: UserProfile;
 }
@@ -192,7 +207,53 @@ export interface RegisterResponse {
 
 ---
 
-## 3. Validate Token
+## 3. Refresh Token
+
+Uses a stateful refresh token (stored via WordPress transients in Redis) to issue a new Access Token. Also returns a new rotating refresh token.
+
+* **URL:** `/wp-json/handicraft/v1/auth/refresh`
+* **Method:** `POST`
+* **Headers:** `Content-Type: application/json`
+
+### Request Body
+```json
+{
+  "token": "48b6f3a3f..."
+}
+```
+
+### Response `200 OK`
+```json
+{
+  "success": true,
+  "token": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refreshToken": "new_random_refresh_token_string..."
+  }
+}
+```
+
+### Error Responses
+* `401 Unauthorized` — Invalid or expired refresh token.
+
+### TypeScript Interface (Frontend Contract)
+```typescript
+export interface RefreshPayload {
+  token: string;
+}
+
+export interface RefreshResponse {
+  success: boolean;
+  token: {
+    accessToken: string;
+    refreshToken: string;
+  };
+}
+```
+
+---
+
+## 4. Validate Token
 
 Validates whether a JWT token is valid, correctly signed, and not expired.
 
