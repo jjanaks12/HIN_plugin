@@ -223,6 +223,9 @@ class HIN_Order_Routes {
                 $base_unit_price = floatval($product->get_price());
             }
 
+            // Apply Tier Pricing
+            $base_unit_price = HIN_Tier_Pricing::get_price_for_quantity($product_id, $qty, $base_unit_price);
+
             if ($qty % $step !== 0 || $qty < $step) {
                 return new WP_REST_Response([
                     'success' => false,
@@ -323,6 +326,9 @@ class HIN_Order_Routes {
                 } else {
                     $base_unit_price = floatval($product->get_price());
                 }
+
+                // Apply Tier Pricing
+                $base_unit_price = HIN_Tier_Pricing::get_price_for_quantity($product_id, $qty, $base_unit_price);
 
                 // Convert and lock unit price in the customer's selected transaction currency
                 $effective_unit_price = round($base_unit_price * $exchange_rate, 2);

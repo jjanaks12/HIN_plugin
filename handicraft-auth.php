@@ -28,6 +28,7 @@ require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-catalog-routes.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-currency-routes.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-order-routes.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-wholesale-settings.php';
+require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-tier-pricing.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-documentation-viewer.php';
 
 /**
@@ -77,6 +78,10 @@ class HIN_Auth_Plugin {
         // Initialize Wholesale Settings
         $wholesale_settings = new HIN_Wholesale_Settings();
         $wholesale_settings->init();
+
+        // Initialize Tier Pricing
+        $tier_pricing = new HIN_Tier_Pricing();
+        $tier_pricing->init();
 
         // Initialize /documentation Endpoint Viewer
         $doc_viewer = new HIN_Documentation_Viewer();

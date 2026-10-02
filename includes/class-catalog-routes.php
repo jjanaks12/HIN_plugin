@@ -546,6 +546,7 @@ class HIN_Catalog_Routes {
             'regularPrice'     => !empty($regular_price) ? floatval($regular_price) : (!empty($price) ? floatval($price) : 0),
             'salePrice'        => !empty($sale_price) ? floatval($sale_price) : null,
             'wholesalePrice'   => !empty($wholesale_price) ? floatval($wholesale_price) : null,
+            'tierPricing'      => get_post_meta($id, '_tier_pricing', true) ?: [],
             'onSale'           => $product->is_on_sale(),
             'inStock'          => $product->is_in_stock(),
             'stockQuantity'    => $product->get_stock_quantity(),
