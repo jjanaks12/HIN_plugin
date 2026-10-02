@@ -386,6 +386,84 @@ class HIN_Order_Routes {
             $order->update_meta_data('_exchange_rate', $exchange_rate);
             $order->update_meta_data('_base_currency', 'USD');
 
+            // Calculate Sample Credits
+            $sample_credit_usd = 0;
+            $credits_to_apply = [];
+            
+            if ($order_type === 'wholesale') {
+                $customer_emails = [$customer_data['email'] ?? ''];
+                if ($current_user_id > 0) {
+                    $user_info = get_userdata($current_user_id);
+                    if ($user_info) $customer_emails[] = $user_info->user_email;
+                }
+                $customer_emails = array_unique(array_filter($customer_emails));
+                
+                $customer_query = $current_user_id > 0 ? $current_user_id : (count($customer_emails) > 0 ? $customer_emails : '');
+                
+                if (!empty($customer_query)) {
+                    $past_orders = wc_get_orders([
+                        'customer' => $customer_query,
+                        'limit' => -1,
+                        'status' => ['wc-completed', 'wc-processing'],
+                    ]);
+                    
+                    $available_credits = [];
+                    foreach ($past_orders as $p_order) {
+                        if ($p_order->get_meta('_order_type') === 'retail') {
+                            foreach ($p_order->get_items() as $p_item) {
+                                $pid = $p_item->get_product_id();
+                                $retail_price = floatval($p_item->get_meta('_base_unit_price_usd'));
+                                if (!$retail_price) $retail_price = floatval($p_item->get_subtotal() / max(1, $p_item->get_quantity()));
+                                
+                                $wholesale_price = floatval(get_post_meta($pid, '_wholesale_price', true));
+                                if (!$wholesale_price && $p_item->get_product()) {
+                                    $wholesale_price = floatval($p_item->get_product()->get_price());
+                                }
+                                
+                                $diff = max(0, $retail_price - $wholesale_price);
+                                if ($diff > 0) {
+                                    if (!isset($available_credits[$pid])) $available_credits[$pid] = 0;
+                                    $available_credits[$pid] += ($diff * $p_item->get_quantity());
+                                }
+                            }
+                        }
+                        
+                        if ($p_order->get_meta('_order_type') === 'wholesale') {
+                            $used_credits = $p_order->get_meta('_sample_credits_used');
+                            if (is_array($used_credits)) {
+                                foreach ($used_credits as $pid => $amount) {
+                                    if (isset($available_credits[$pid])) {
+                                        $available_credits[$pid] -= $amount;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    foreach ($items_data as $item) {
+                        $pid = intval($item['productId']);
+                        if (!empty($available_credits[$pid]) && $available_credits[$pid] > 0) {
+                            $credit = floatval($available_credits[$pid]);
+                            $sample_credit_usd += $credit;
+                            $credits_to_apply[$pid] = $credit;
+                            $available_credits[$pid] = 0; // mark as used for this calculation
+                        }
+                    }
+                    
+                    if ($sample_credit_usd > 0) {
+                        $credit_in_order_currency = round($sample_credit_usd * $exchange_rate, 2);
+                        
+                        $fee = new WC_Order_Item_Fee();
+                        $fee->set_name(__('Sample Purchase Credit', 'handicraft-auth'));
+                        $fee->set_amount(-$credit_in_order_currency);
+                        $fee->set_total(-$credit_in_order_currency);
+                        $order->add_item($fee);
+                        
+                        $order->update_meta_data('_sample_credits_used', $credits_to_apply);
+                    }
+                }
+            }
+
             // Calculate totals & set appropriate order status
             $order->calculate_totals();
             
