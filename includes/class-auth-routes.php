@@ -172,6 +172,39 @@ class HIN_Auth_Routes
                 'permission_callback' => [$this, 'check_authenticated_permission'],
             ]
         ]);
+
+        /**
+         * @route   POST /wp-json/handicraft/v1/auth/upgrade
+         * @desc    Upgrade to wholesale account.
+         * @auth    Bearer JWT Token required
+         */
+        register_rest_route(self::NAMESPACE, '/auth/upgrade', [
+            'methods'             => WP_REST_Server::CREATABLE,
+            'callback'            => [$this, 'handle_upgrade'],
+            'permission_callback' => [$this, 'check_authenticated_permission'],
+            'args'                => [
+                'company_name' => [
+                    'required'          => true,
+                    'type'              => 'string',
+                    'sanitize_callback' => 'sanitize_text_field',
+                ],
+                'tax_id'       => [
+                    'required'          => true,
+                    'type'              => 'string',
+                    'sanitize_callback' => 'sanitize_text_field',
+                ],
+                'address'      => [
+                    'required'          => true,
+                    'type'              => 'string',
+                    'sanitize_callback' => 'sanitize_textarea_field',
+                ],
+                'phone'        => [
+                    'required'          => true,
+                    'type'              => 'string',
+                    'sanitize_callback' => 'sanitize_text_field',
+                ],
+            ],
+        ]);
     }
 
     /**
@@ -198,22 +231,24 @@ class HIN_Auth_Routes
         $token = HIN_JWT_Handler::generate_token($user);
         $profile = HIN_User_Service::format_user_profile($user);
 
-        $expiration = 30 * DAY_IN_SECONDS;
+        $token_response = [
+            'accessToken' => $token,
+            'expiresIn'   => 30 * DAY_IN_SECONDS,
+        ];
 
-        // 1. Generate a secure random string for the refresh token
-        $refresh_token = bin2hex(random_bytes(32));
-        // 2. Hash it for storage (so if Redis is compromised, hackers can't use the raw token)
-        $hashed_token = hash('sha256', $refresh_token);
-        // 3. Store in Redis via Transients API for 30 days (30 * 24 * 60 * 60)
-        set_transient('hin_refresh_' . $hashed_token, $user->ID, $expiration);
+        // Issue refresh token only if "remember" is explicitly requested
+        if ($request->get_param('remember')) {
+            $expiration = 30 * DAY_IN_SECONDS;
+            $refresh_token = bin2hex(random_bytes(32));
+            $hashed_token = hash('sha256', $refresh_token);
+            set_transient('hin_refresh_' . $hashed_token, $user->ID, $expiration);
+            
+            $token_response['refreshToken'] = $refresh_token;
+        }
 
         return new WP_REST_Response([
             'success' => true,
-            'token' => [
-                'accessToken' => $token,
-                'expiresIn' => $expiration,
-                'refreshToken' => $refresh_token,
-            ],
+            'token' => $token_response,
             'tokenType' => 'Bearer',
             'user' => $profile,
         ], 200);
@@ -241,10 +276,24 @@ class HIN_Auth_Routes
         $token = HIN_JWT_Handler::generate_token($user);
         $profile = HIN_User_Service::format_user_profile($user);
 
+        $token_response = [
+            'accessToken' => $token,
+            'expiresIn'   => 30 * DAY_IN_SECONDS,
+        ];
+
+        if ($request->get_param('remember')) {
+            $expiration = 30 * DAY_IN_SECONDS;
+            $refresh_token = bin2hex(random_bytes(32));
+            $hashed_token = hash('sha256', $refresh_token);
+            set_transient('hin_refresh_' . $hashed_token, $user->ID, $expiration);
+            
+            $token_response['refreshToken'] = $refresh_token;
+        }
+
         return new WP_REST_Response([
             'success'   => true,
             'message'   => 'Account registered successfully.',
-            'token'     => $token,
+            'token'     => $token_response,
             'tokenType' => 'Bearer',
             'user'      => $profile,
         ], 201);
@@ -350,6 +399,47 @@ class HIN_Auth_Routes
         return new WP_REST_Response([
             'success' => true,
             'message' => 'Profile updated successfully.',
+            'user'    => HIN_User_Service::format_user_profile($user),
+        ], 200);
+    }
+
+    /**
+     * Handle Upgrade to Wholesale.
+     *
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
+     */
+    public function handle_upgrade(WP_REST_Request $request): WP_REST_Response
+    {
+        $user_id = get_current_user_id();
+        $user = get_user_by('id', $user_id);
+
+        if (!$user) {
+            return new WP_REST_Response(['message' => 'User not found.'], 404);
+        }
+
+        $company_name = $request->get_param('company_name');
+        $tax_id       = $request->get_param('tax_id');
+        $address      = $request->get_param('address');
+        $phone        = $request->get_param('phone');
+
+        // Update user meta
+        update_user_meta($user_id, 'billing_company', $company_name);
+        update_user_meta($user_id, 'billing_phone', $phone);
+        update_user_meta($user_id, 'tax_id', $tax_id);
+        update_user_meta($user_id, 'business_address', $address);
+        
+        // Custom wholesale flags
+        update_user_meta($user_id, 'is_wholesale', 1);
+
+        // Add wholesale role if not already present
+        if (!in_array('wholesale', $user->roles)) {
+            $user->add_role('wholesale');
+        }
+
+        return new WP_REST_Response([
+            'success' => true,
+            'message' => 'Successfully upgraded to wholesale account.',
             'user'    => HIN_User_Service::format_user_profile($user),
         ], 200);
     }
