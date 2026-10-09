@@ -30,6 +30,7 @@ require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-order-routes.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-wholesale-settings.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-tier-pricing.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-documentation-viewer.php';
+require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-roles-admin.php';
 
 /**
  * Main Plugin Bootstrap Class
@@ -86,6 +87,12 @@ class HIN_Auth_Plugin {
         // Initialize /documentation Endpoint Viewer
         $doc_viewer = new HIN_Documentation_Viewer();
         $doc_viewer->init();
+
+        // Initialize Custom Roles Admin UI
+        if (is_admin()) {
+            $roles_admin = new HIN_Roles_Admin();
+            $roles_admin->init();
+        }
     }
 
     /**
@@ -105,14 +112,32 @@ class HIN_Auth_Plugin {
      * Activation logic: register custom roles like 'wholesale'.
      */
     public function on_activate() {
+        // 1. Register Wholesale Customer Role
         if (!get_role('wholesale')) {
             add_role(
                 'wholesale',
                 __('Wholesale Customer', 'handicraft-auth'),
                 [
-                    'read'         => true,
-                    'edit_posts'   => false,
-                    'delete_posts' => false,
+                    'read'                   => true,
+                    'view_wholesale_pricing' => true,
+                    'request_custom_order'   => true,
+                ]
+            );
+        }
+
+        // 2. Register Product Manager Role
+        if (!get_role('product_manager')) {
+            add_role(
+                'product_manager',
+                __('Product Manager', 'handicraft-auth'),
+                [
+                    'read'                   => true,
+                    'edit_posts'             => true,
+                    'edit_published_posts'   => true,
+                    'edit_others_posts'      => true,
+                    'edit_products'          => true,
+                    'edit_published_products'=> true,
+                    'manage_woocommerce'     => true, // Give access to basic WC management if needed
                 ]
             );
         }

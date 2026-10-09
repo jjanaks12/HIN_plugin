@@ -195,6 +195,7 @@ class HIN_User_Service {
             'lastName'     => $user->last_name,
             'displayName'  => $user->display_name,
             'roles'        => $roles,
+            'capabilities' => array_keys(array_filter((array) $user->allcaps)),
             'isWholesale'  => $is_wholesale,
             'companyName'  => get_user_meta($user->ID, 'billing_company', true) ?: '',
             'taxId'        => get_user_meta($user->ID, '_tax_id', true) ?: '',
