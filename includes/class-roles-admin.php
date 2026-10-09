@@ -27,6 +27,7 @@ class HIN_Roles_Admin
             'add_to_cart'            => 'Add to Cart',
             'view_wholesale_pricing' => 'View Wholesale Pricing',
             'request_custom_order'   => 'Request Custom Order',
+            'view_dashboard'         => 'View Dashboard',
         ];
     }
 

@@ -51,6 +51,17 @@ class HIN_Catalog_Routes {
         ]);
 
         /**
+         * @route   GET /wp-json/handicraft/v1/categories
+         * @desc    Retrieve all top-level product categories.
+         * @auth    Public
+         */
+        register_rest_route(self::NAMESPACE, '/categories', [
+            'methods'             => WP_REST_Server::READABLE,
+            'callback'            => [$this, 'handle_get_categories'],
+            'permission_callback' => '__return_true',
+        ]);
+
+        /**
          * @route   GET /wp-json/handicraft/v1/search
          * @desc    Instant predictive search returning matched categories and products.
          * @auth    Public
@@ -94,6 +105,39 @@ class HIN_Catalog_Routes {
                 ],
             ],
         ]);
+    }
+
+    /**
+     * Handle Get Categories Endpoint.
+     *
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
+     */
+    public function handle_get_categories(WP_REST_Request $request): WP_REST_Response {
+        $terms = get_terms([
+            'taxonomy'   => 'product_cat',
+            'hide_empty' => false,
+            'parent'     => 0, // Get top-level categories only
+        ]);
+
+        $categories = [];
+        if (!empty($terms) && !is_wp_error($terms)) {
+            foreach ($terms as $term) {
+                if ($term->slug === 'uncategorized') continue;
+                $categories[] = [
+                    'id'    => (int) $term->term_id,
+                    'name'  => html_entity_decode($term->name, ENT_QUOTES, 'UTF-8'),
+                    'slug'  => $term->slug,
+                    'count' => (int) $term->count,
+                    'href'  => '/' . $term->slug,
+                ];
+            }
+        }
+
+        return new WP_REST_Response([
+            'success'    => true,
+            'categories' => $categories,
+        ], 200);
     }
 
     /**
