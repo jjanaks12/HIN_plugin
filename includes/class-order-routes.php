@@ -58,6 +58,32 @@ class HIN_Order_Routes {
             ],
         ]);
 
+        // POST /wp-json/handicraft/v1/orders/track
+        register_rest_route($this->namespace, '/orders/track', [
+            'methods'             => WP_REST_Server::CREATABLE,
+            'callback'            => [$this, 'track_order'],
+            'permission_callback' => '__return_true',
+            'args'                => [
+                'order_id' => [
+                    'description'       => __('Unique WooCommerce Order ID.', 'handicraft-auth'),
+                    'type'              => 'integer',
+                    'required'          => true,
+                    'validate_callback' => function ($param) {
+                        return is_numeric($param) && intval($param) > 0;
+                    },
+                ],
+                'billing_email' => [
+                    'description'       => __('Billing email address matching the order.', 'handicraft-auth'),
+                    'type'              => 'string',
+                    'format'            => 'email',
+                    'required'          => true,
+                    'validate_callback' => function ($param) {
+                        return is_email($param);
+                    },
+                ],
+            ],
+        ]);
+
         // GET /wp-json/handicraft/v1/orders/my-orders
         register_rest_route($this->namespace, '/orders/my-orders', [
             'methods'             => WP_REST_Server::READABLE,
@@ -74,6 +100,77 @@ class HIN_Order_Routes {
                 ],
             ],
         ]);
+    }
+
+    /**
+     * Public order tracking endpoint for guest and authenticated customers.
+     * Matches order ID and billing email to return sanitized order status, progress, items, and tracking numbers.
+     *
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
+     */
+    public function track_order(WP_REST_Request $request): WP_REST_Response {
+        $order_id      = intval($request->get_param('order_id'));
+        $billing_email = sanitize_email($request->get_param('billing_email'));
+
+        if (!function_exists('wc_get_order')) {
+            return new WP_REST_Response(['success' => false, 'message' => 'WooCommerce not available.'], 500);
+        }
+
+        $order = wc_get_order($order_id);
+        if (!$order) {
+            return new WP_REST_Response([
+                'success' => false,
+                'message' => __('No order found matching the provided Order ID and Billing Email. Please check your details and try again.', 'handicraft-auth')
+            ], 404);
+        }
+
+        $order_billing_email = strtolower(trim($order->get_billing_email()));
+        if ($order_billing_email !== strtolower(trim($billing_email))) {
+            return new WP_REST_Response([
+                'success' => false,
+                'message' => __('No order found matching the provided Order ID and Billing Email. Please check your details and try again.', 'handicraft-auth')
+            ], 404);
+        }
+
+        $formatted_order = $this->format_order_response($order);
+
+        // Extract any shipment tracking numbers / courier information
+        $carrier = $order->get_meta('_shipping_carrier') ?: $order->get_meta('_courier_name') ?: '';
+        $tracking_number = $order->get_meta('_tracking_number') ?: $order->get_meta('_tracking_code') ?: '';
+        $tracking_link = $order->get_meta('_tracking_url') ?: '';
+
+        // Check WooCommerce Shipment Tracking plugin format if present
+        $wc_tracking_items = $order->get_meta('_wc_shipment_tracking_items');
+        if (!empty($wc_tracking_items) && is_array($wc_tracking_items)) {
+            $first_tracking = $wc_tracking_items[0];
+            $carrier = $first_tracking['custom_tracking_provider'] ?? $first_tracking['tracking_provider'] ?? $carrier;
+            $tracking_number = $first_tracking['tracking_number'] ?? $tracking_number;
+            $tracking_link = $first_tracking['custom_tracking_link'] ?? $first_tracking['formatted_tracking_link'] ?? $tracking_link;
+        }
+
+        if ($tracking_number) {
+            $tracking_info = [
+                'hasTracking'    => true,
+                'carrier'        => $carrier ?: 'Express Air Courier',
+                'trackingNumber' => $tracking_number,
+                'trackingUrl'    => $tracking_link,
+            ];
+        } else {
+            $tracking_info = [
+                'hasTracking'    => false,
+                'carrier'        => $order->get_shipping_method() ?: 'Standard International Courier',
+                'trackingNumber' => '',
+                'trackingUrl'    => '',
+            ];
+        }
+
+        return new WP_REST_Response([
+            'success'  => true,
+            'message'  => __('Order details retrieved successfully.', 'handicraft-auth'),
+            'order'    => $formatted_order,
+            'tracking' => $tracking_info,
+        ], 200);
     }
 
     /**

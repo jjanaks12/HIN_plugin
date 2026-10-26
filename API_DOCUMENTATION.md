@@ -22,6 +22,7 @@
 | `GET` | `/orders/{id}` | Fetch full order receipt & itemized lines | Guest (via `order_key`) or Owner Bearer |
 | `GET` | `/orders/my-orders` | Fetch paginated order history for authenticated user | **Yes** (`Bearer <token>`) |
 | `GET` | `/currencies` | Fetch active multi-currency options, exchange rates, and flags (YayCurrency integrated) | No |
+| `POST` | `/orders/track` | Public order status & tracking lookup by Order ID and Billing Email | No (Public Guest / Customer) |
 | `POST` | `/contact` | Submit customer contact inquiry message | No |
 
 ---
@@ -1125,5 +1126,169 @@ export interface ContactResponse {
   message: string
 }
 ```
+
+---
+
+## 16. Track Order Lookup
+
+Public order lookup endpoint allowing guest and authenticated customers to track real-time order status, production progress, line items, and international carrier tracking information by providing their Order ID and Billing Email.
+
+* **URL:** `/wp-json/handicraft/v1/orders/track`
+* **Method:** `POST`
+* **Headers:** `Content-Type: application/json`
+* **Auth Required:** No
+
+### Request Body
+```json
+{
+  "order_id": 1042,
+  "billing_email": "customer@example.com"
+}
+```
+
+### Response `200 OK`
+```json
+{
+  "success": true,
+  "message": "Order details retrieved successfully.",
+  "order": {
+    "id": 1042,
+    "orderNumber": "1042",
+    "orderKey": "wc_order_abc123",
+    "status": "processing",
+    "orderType": "wholesale",
+    "isWholesale": true,
+    "currency": "USD",
+    "dateCreated": "2026-10-24T08:30:00+00:00",
+    "total": 650.00,
+    "subtotal": 600.00,
+    "shippingTotal": 50.00,
+    "discountTotal": 0.00,
+    "paymentMethod": {
+      "id": "bacs",
+      "title": "Direct Bank Transfer (Wire)"
+    },
+    "shippingMethod": {
+      "title": "DHL Express Worldwide",
+      "cost": 50.00
+    },
+    "customer": {
+      "email": "customer@example.com",
+      "phone": "+1 415 555 0199",
+      "firstName": "Liam",
+      "lastName": "Smith"
+    },
+    "shippingAddress": {
+      "firstName": "Liam",
+      "lastName": "Smith",
+      "address1": "742 Evergreen Terrace",
+      "address2": "",
+      "city": "Springfield",
+      "state": "OR",
+      "postcode": "97477",
+      "country": "US"
+    },
+    "items": [
+      {
+        "id": 88,
+        "productId": 210,
+        "name": "Full Moon Hand-Hammered Singing Bowl 8 inch",
+        "quantity": 10,
+        "subtotal": 450.00,
+        "total": 450.00,
+        "unitPrice": 45.00,
+        "sku": "SB-FM-08",
+        "image": "https://hin.test/wp-content/uploads/2026/singing-bowl.jpg"
+      }
+    ]
+  },
+  "tracking": {
+    "hasTracking": true,
+    "carrier": "DHL Express",
+    "trackingNumber": "1234567890",
+    "trackingUrl": "https://www.dhl.com/en/express/tracking.html?AWB=1234567890"
+  }
+}
+```
+
+### Error Responses
+* `400 Bad Request` — Missing or invalid `order_id` or `billing_email`.
+* `404 Not Found` — No order matches the given combination of Order ID and Billing Email:
+  ```json
+  {
+    "success": false,
+    "message": "No order found matching the provided Order ID and Billing Email. Please check your details and try again."
+  }
+  ```
+
+### TypeScript Frontend Contract
+```typescript
+export interface TrackOrderPayload {
+  order_id: number
+  billing_email: string
+}
+
+export interface TrackOrderResponse {
+  success: boolean
+  message: string
+  order: {
+    id: number
+    orderNumber: string
+    orderKey: string
+    status: string
+    orderType: 'retail' | 'wholesale'
+    isWholesale: boolean
+    currency: string
+    dateCreated: string
+    total: number
+    subtotal: number
+    shippingTotal: number
+    discountTotal: number
+    paymentMethod: {
+      id: string
+      title: string
+    }
+    shippingMethod: {
+      title: string
+      cost: number
+    }
+    customer: {
+      email: string
+      phone: string
+      firstName: string
+      lastName: string
+    }
+    shippingAddress: {
+      firstName: string
+      lastName: string
+      address1: string
+      address2?: string
+      city: string
+      state?: string
+      postcode: string
+      country: string
+    }
+    items: Array<{
+      id: number
+      productId: number
+      name: string
+      quantity: number
+      subtotal: number
+      total: number
+      unitPrice: number
+      sku: string
+      image: string
+    }>
+    customerNote?: string
+  }
+  tracking: {
+    hasTracking: boolean
+    carrier: string
+    trackingNumber: string
+    trackingUrl: string
+  }
+}
+```
+
 
 
