@@ -31,6 +31,7 @@ require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-wholesale-settings.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-tier-pricing.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-documentation-viewer.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-roles-admin.php';
+require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-quotes.php';
 
 /**
  * Main Plugin Bootstrap Class
@@ -93,6 +94,9 @@ class HIN_Auth_Plugin {
             $roles_admin = new HIN_Roles_Admin();
             $roles_admin->init();
         }
+
+        // Initialize Quotes (CPT & Endpoints)
+        new HIN_Quotes();
     }
 
     /**
