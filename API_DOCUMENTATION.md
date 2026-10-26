@@ -22,6 +22,7 @@
 | `GET` | `/orders/{id}` | Fetch full order receipt & itemized lines | Guest (via `order_key`) or Owner Bearer |
 | `GET` | `/orders/my-orders` | Fetch paginated order history for authenticated user | **Yes** (`Bearer <token>`) |
 | `GET` | `/currencies` | Fetch active multi-currency options, exchange rates, and flags (YayCurrency integrated) | No |
+| `POST` | `/contact` | Submit customer contact inquiry message | No |
 
 ---
 
@@ -1073,6 +1074,55 @@ export interface CurrenciesResponse {
   success: boolean
   baseCurrency: string
   currencies: CurrencyItem[]
+}
+```
+
+---
+
+## 15. Submit Contact Inquiry
+
+Submit a customer inquiry message from the public Contact Us page. Dispatches an email notification to store administration.
+
+* **URL:** `/wp-json/handicraft/v1/contact`
+* **Method:** `POST`
+* **Headers:** `Content-Type: application/json`
+* **Auth Required:** No
+
+### Request Body
+```json
+{
+  "name": "Sarah Jenkins",
+  "email": "sarah.j@example.com",
+  "phone": "+1 415 555 2671",
+  "subject": "Inquiry regarding singing bowls wholesale",
+  "message": "Hello, I am interested in ordering handcrafted singing bowls and Lokta journals in bulk for my boutique in San Francisco. Could you please share export freight details?"
+}
+```
+
+### Response `200 OK`
+```json
+{
+  "success": true,
+  "message": "Thank you for contacting us! We have received your message and will get back to you shortly."
+}
+```
+
+### Error Responses
+* `400 Bad Request` — Missing required fields (`name`, `email`, or `message`), or invalid email format.
+
+### TypeScript Frontend Contract
+```typescript
+export interface ContactPayload {
+  name: string
+  email: string
+  phone?: string
+  subject?: string
+  message: string
+}
+
+export interface ContactResponse {
+  success: boolean
+  message: string
 }
 ```
 

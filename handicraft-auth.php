@@ -32,6 +32,7 @@ require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-tier-pricing.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-documentation-viewer.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-roles-admin.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-quotes.php';
+require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-contact-routes.php';
 
 /**
  * Main Plugin Bootstrap Class
@@ -165,6 +166,9 @@ class HIN_Auth_Plugin {
 
         $order_routes = new HIN_Order_Routes();
         $order_routes->register_routes();
+
+        $contact_routes = new HIN_Contact_Routes();
+        $contact_routes->register_routes();
     }
 
     public function register_rest_routes() {
