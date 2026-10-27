@@ -28,6 +28,7 @@ class HIN_Roles_Admin
             'view_wholesale_pricing' => 'View Wholesale Pricing',
             'request_custom_order'   => 'Request Custom Order',
             'view_dashboard'         => 'View Dashboard',
+            'profile_upgradeable'    => 'Upgrade profile',
         ];
     }
 
