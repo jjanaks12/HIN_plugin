@@ -11,6 +11,7 @@
 | `POST` | `/auth/login` | Authenticate user & issue JWT token | No |
 | `POST` | `/auth/register` | Register new customer or wholesale user & issue JWT token | No |
 | `POST` | `/auth/refresh` | Refresh an expired access token using a refresh token | No |
+| `POST` | `/auth/logout` | Clear HttpOnly JWT token cookie & terminate session | No (Public / Optional) |
 | `POST` | `/auth/validate` | Verify JWT token validity | No (or Bearer header) |
 | `GET` | `/auth/me` | Fetch currently authenticated user profile | **Yes** (`Bearer <token>`) |
 | `GET` | `/menus` | Fetch navigation menus tree by location or slug | No |
@@ -357,6 +358,35 @@ Retrieves the authenticated user's profile and roles.
 export interface CurrentUserResponse {
   success: boolean;
   user: UserProfile;
+}
+```
+
+---
+
+## 4.1 User Logout (`/auth/logout`)
+
+Clears the `hin_access_token` `HttpOnly` cookie and terminates the user session on the server.
+
+* **URL:** `/wp-json/handicraft/v1/auth/logout`
+* **Method:** `POST`
+* **Auth:** Public / Optional authenticated
+* **Headers:** `Content-Type: application/json`
+
+### Response `200 OK`
+```json
+{
+  "success": true,
+  "message": "Logged out successfully."
+}
+```
+> **Set-Cookie Header:**
+> `hin_access_token=deleted; expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0; path=/; secure; HttpOnly; SameSite=Lax`
+
+### TypeScript Interface (Frontend Contract)
+```typescript
+export interface LogoutResponse {
+  success: boolean;
+  message: string;
 }
 ```
 
@@ -1289,6 +1319,93 @@ export interface TrackOrderResponse {
   }
 }
 ```
+
+---
+
+## 14. Security Architecture & API Hardening
+
+The API implements a multi-layer defense-in-depth model protecting endpoints against browser-based Cross-Site Scripting (XSS), Cross-Site Request Forgery (CSRF), brute-force attacks, and automated scraper / Postman flooding.
+
+### 14.1 Dual-Layer Authentication (`HttpOnly` Cookie & Bearer Token)
+
+To protect client sessions against malicious JavaScript theft (XSS attack vectors), the API sets an `HttpOnly` cookie upon login, registration, and token refresh:
+
+* **Cookie Name:** `hin_access_token`
+* **Attributes:** `HttpOnly; Secure; SameSite=Lax; Path=/`
+* **Dual Resolution:**
+  1. The server first checks `$_SERVER['HTTP_AUTHORIZATION']` for `Bearer <token>`.
+  2. If absent, it automatically inspects `$_COOKIE['hin_access_token']`.
+* **Frontend Integration:** Nuxt 3 Axios instance uses `withCredentials: true` and `Access-Control-Allow-Credentials: true` is sent by the server, allowing seamless cookie exchange without exposing tokens to `document.cookie`.
+
+---
+
+### 14.2 Throttling & Rate Limiting (`429 Too Many Requests`)
+
+All REST endpoints under `/wp-json/handicraft/v1` are protected by a transient-backed IP rate limiter:
+
+| Category | Endpoints Covered | Threshold | Window |
+| :--- | :--- | :--- | :--- |
+| **Sensitive** | `/auth/login`, `/auth/register`, `/auth/refresh`, `/orders/checkout`, `/orders/track`, `/contact` | **15 requests** | 60 seconds |
+| **General** | `/menus`, `/catalog/*`, `/products/*`, `/search`, `/currencies` | **120 requests** | 60 seconds |
+
+When a client IP exceeds the quota:
+* **HTTP Status:** `429 Too Many Requests`
+* **Response Headers:**
+  * `Retry-After: <seconds_remaining>`
+  * `X-RateLimit-Limit: <quota>`
+  * `X-RateLimit-Remaining: 0`
+* **Response Body:**
+  ```json
+  {
+    "code": "rate_limit_exceeded",
+    "message": "Too many requests. Please wait a moment before trying again.",
+    "data": {
+      "status": 429,
+      "retry_after": 43
+    }
+  }
+  ```
+
+---
+
+### 14.3 Origin Verification & CORS Guard
+
+For state-modifying HTTP requests (`POST`, `PUT`, `PATCH`, `DELETE`):
+* If an `Origin` header is sent by a browser or client tool, the origin is validated against the WordPress allowed CORS origins option (`hin_cors_allowed_origins`).
+* Localhost origins (`localhost`, `127.0.0.1`) are permitted for local development.
+* Unrecognized or malicious origins are blocked immediately with `403 Forbidden`:
+  ```json
+  {
+    "code": "unauthorized_origin",
+    "message": "Requests from this origin are not permitted.",
+    "data": { "status": 403 }
+  }
+  ```
+
+---
+
+### 14.4 Standard HTTP Security Headers
+
+Every REST API response is injected with strict security headers:
+* `X-Content-Type-Options: nosniff` — Prevents MIME-type sniffing.
+* `X-Frame-Options: SAMEORIGIN` — Mitigates clickjacking attacks.
+* `X-XSS-Protection: 1; mode=block` — Enables legacy browser XSS filters.
+* `Referrer-Policy: strict-origin-when-cross-origin` — Protects referral leakage.
+
+---
+
+### 14.5 Postman & Automated Client Behavior
+
+> **Does `HttpOnly` prevent requests from Postman or Curl?**
+>
+> **No.** `HttpOnly` is a **browser-enforced** security attribute that stops JavaScript from reading the cookie. Postman, Curl, and custom scripts are developer tools that can send any arbitrary HTTP headers and cookies.
+>
+> However, our **implemented defense measures actively restrict Postman and automated scripts**:
+> 1. **IP Rate Limiting:** Brute-force attacks or automated scraping from Postman/scripts are cut off at 15 requests/min on sensitive routes with `429 Too Many Requests`.
+> 2. **Origin Validation:** If an automated client tries to mimic an unauthorized web application, it is rejected with `403 Forbidden`.
+> 3. **Session Expiry & Rotation:** Refresh tokens rotate automatically and are tracked in transients, preventing token replay attacks.
+> 4. **Production Recommendation:** For public deployments, pair these backend measures with a CDN/WAF (e.g. Cloudflare Bot Fight Mode or Turnstile CAPTCHA) to challenge non-browser user-agents before reaching the PHP application layer.
+
 
 
 

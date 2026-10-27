@@ -124,11 +124,46 @@ class HIN_JWT_Handler {
     }
 
     /**
-     * Extract token from HTTP Authorization header.
+     * Set HttpOnly, Secure, SameSite=Lax cookie for the JWT access token.
+     *
+     * @param string $token
+     * @param int $ttl Time to live in seconds
+     */
+    public static function set_token_cookie(string $token, int $ttl = 604800): void {
+        $expire = time() + $ttl;
+        $secure = is_ssl();
+
+        setcookie('hin_access_token', $token, [
+            'expires'  => $expire,
+            'path'     => '/',
+            'domain'   => '',
+            'secure'   => $secure,
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+    }
+
+    /**
+     * Clear the HttpOnly JWT access token cookie.
+     */
+    public static function clear_token_cookie(): void {
+        setcookie('hin_access_token', '', [
+            'expires'  => time() - 3600,
+            'path'     => '/',
+            'domain'   => '',
+            'secure'   => is_ssl(),
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+    }
+
+    /**
+     * Extract token from HTTP Authorization header or HttpOnly cookie.
      *
      * @return string|null
      */
     public static function get_token_from_request(): ?string {
+        // 1. Check HTTP Authorization Bearer Header
         $auth_header = null;
 
         if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
@@ -142,12 +177,13 @@ class HIN_JWT_Handler {
             }
         }
 
-        if (!$auth_header) {
-            return null;
+        if ($auth_header && preg_match('/Bearer\s(\S+)/i', $auth_header, $matches)) {
+            return $matches[1];
         }
 
-        if (preg_match('/Bearer\s(\S+)/i', $auth_header, $matches)) {
-            return $matches[1];
+        // 2. Fallback to HttpOnly Cookie
+        if (!empty($_COOKIE['hin_access_token'])) {
+            return sanitize_text_field(wp_unslash($_COOKIE['hin_access_token']));
         }
 
         return null;

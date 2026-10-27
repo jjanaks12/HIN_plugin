@@ -205,6 +205,18 @@ class HIN_Auth_Routes
                 ],
             ],
         ]);
+
+        /**
+         * @route   POST /wp-json/handicraft/v1/auth/logout
+         * @desc    Clear HttpOnly JWT access token cookie.
+         * @auth    Public / Optional auth
+         * @returns 200 { success: bool, message: string }
+         */
+        register_rest_route(self::NAMESPACE, '/auth/logout', [
+            'methods'             => WP_REST_Server::CREATABLE,
+            'callback'            => [$this, 'handle_logout'],
+            'permission_callback' => '__return_true',
+        ]);
     }
 
     /**
@@ -230,6 +242,9 @@ class HIN_Auth_Routes
 
         $token = HIN_JWT_Handler::generate_token($user);
         $profile = HIN_User_Service::format_user_profile($user);
+
+        // Set HttpOnly, Secure, SameSite=Lax cookie for browser session security
+        HIN_JWT_Handler::set_token_cookie($token, 30 * DAY_IN_SECONDS);
 
         $token_response = [
             'accessToken' => $token,
@@ -275,6 +290,9 @@ class HIN_Auth_Routes
 
         $token = HIN_JWT_Handler::generate_token($user);
         $profile = HIN_User_Service::format_user_profile($user);
+
+        // Set HttpOnly, Secure, SameSite=Lax cookie for browser session security
+        HIN_JWT_Handler::set_token_cookie($token, 30 * DAY_IN_SECONDS);
 
         $token_response = [
             'accessToken' => $token,
@@ -477,6 +495,9 @@ class HIN_Auth_Routes
         // 2. Generate a new Access Token
         $new_access_token = HIN_JWT_Handler::generate_token($user);
 
+        // Set HttpOnly, Secure, SameSite=Lax cookie for refreshed token
+        HIN_JWT_Handler::set_token_cookie($new_access_token, 30 * DAY_IN_SECONDS);
+
         // 3. (Optional) Implement Token Rotation by deleting the old refresh token and generating a new one
         delete_transient('hin_refresh_' . $hashed_token);
         $new_refresh_token = bin2hex(random_bytes(32));
@@ -488,6 +509,22 @@ class HIN_Auth_Routes
                 'accessToken' => $new_access_token,
                 'refreshToken' => $new_refresh_token
             ]
+        ], 200);
+    }
+
+    /**
+     * Handle Logout Request.
+     *
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
+     */
+    public function handle_logout(WP_REST_Request $request): WP_REST_Response
+    {
+        HIN_JWT_Handler::clear_token_cookie();
+
+        return new WP_REST_Response([
+            'success' => true,
+            'message' => 'Logged out successfully.',
         ], 200);
     }
 }

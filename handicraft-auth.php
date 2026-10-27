@@ -33,6 +33,7 @@ require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-documentation-viewer.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-roles-admin.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-quotes.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-contact-routes.php';
+require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-security-handler.php';
 
 /**
  * Main Plugin Bootstrap Class
@@ -98,6 +99,10 @@ class HIN_Auth_Plugin {
 
         // Initialize Quotes (CPT & Endpoints)
         new HIN_Quotes();
+
+        // Initialize Security Handler (Rate Limiting, Security Headers & Origin Checks)
+        $security_handler = new HIN_Security_Handler();
+        $security_handler->init();
     }
 
     /**
