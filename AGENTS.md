@@ -21,9 +21,12 @@ Whenever creating or modifying any REST API endpoint/route, agents MUST:
 ## Core Rules & Constraints
 * **Zero Third-Party Plugin Dependency:** Do not introduce composer packages or third-party plugins for auth/roles. Use native PHP and core WordPress APIs (`WP_User`, `WP_REST_Server`, `wp_authenticate`, `hash_hmac`).
 * **Modular Structure:**
-  * `includes/class-jwt-handler.php`: JWT issuance, validation, and `determine_current_user` hook.
-  * `includes/class-user-service.php`: Authentication, registration, and user data sanitization.
-  * `includes/class-auth-routes.php`: REST endpoint registration and handlers under namespace `handicraft/v1`.
+  * `includes/routes/`: REST endpoint registration and handlers (`class-*-routes.php`).
+  * `includes/services/`: Core business logic (`class-jwt-handler.php`, `class-user-service.php`).
+  * `includes/security/`: CORS handling and API security/rate-limiting (`class-cors-handler.php`, `class-security-handler.php`).
+  * `includes/admin/`: Admin panels and settings (`class-roles-admin.php`, `class-cors-settings.php`, `class-documentation-viewer.php`).
+  * `includes/woocommerce/`: WooCommerce meta & pricing extensions (`class-wholesale-settings.php`, `class-tier-pricing.php`).
+  * `includes/post-types/`: Custom post types and admin metaboxes (`class-quotes.php`).
 * **Security & Sanitization:**
   * Always sanitize input parameters (`sanitize_text_field`, `sanitize_email`, `sanitize_key`).
   * Use strict permission callbacks for every registered REST route.

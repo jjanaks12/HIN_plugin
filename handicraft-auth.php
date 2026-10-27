@@ -17,23 +17,33 @@ if (!defined('ABSPATH')) {
 define('HIN_AUTH_VERSION', '1.0.0');
 define('HIN_AUTH_PLUGIN_DIR', plugin_dir_path(__FILE__));
 
-// Require Core Modules
-require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-jwt-handler.php';
-require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-user-service.php';
-require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-cors-handler.php';
-require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-cors-settings.php';
-require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-auth-routes.php';
-require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-menu-routes.php';
-require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-catalog-routes.php';
-require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-currency-routes.php';
-require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-order-routes.php';
-require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-wholesale-settings.php';
-require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-tier-pricing.php';
-require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-documentation-viewer.php';
-require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-roles-admin.php';
-require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-quotes.php';
-require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-contact-routes.php';
-require_once HIN_AUTH_PLUGIN_DIR . 'includes/class-security-handler.php';
+// Require Services
+require_once HIN_AUTH_PLUGIN_DIR . 'includes/services/class-jwt-handler.php';
+require_once HIN_AUTH_PLUGIN_DIR . 'includes/services/class-user-service.php';
+
+// Require Security
+require_once HIN_AUTH_PLUGIN_DIR . 'includes/security/class-cors-handler.php';
+require_once HIN_AUTH_PLUGIN_DIR . 'includes/security/class-security-handler.php';
+
+// Require REST API Routes
+require_once HIN_AUTH_PLUGIN_DIR . 'includes/routes/class-auth-routes.php';
+require_once HIN_AUTH_PLUGIN_DIR . 'includes/routes/class-menu-routes.php';
+require_once HIN_AUTH_PLUGIN_DIR . 'includes/routes/class-catalog-routes.php';
+require_once HIN_AUTH_PLUGIN_DIR . 'includes/routes/class-currency-routes.php';
+require_once HIN_AUTH_PLUGIN_DIR . 'includes/routes/class-order-routes.php';
+require_once HIN_AUTH_PLUGIN_DIR . 'includes/routes/class-contact-routes.php';
+
+// Require Admin Modules
+require_once HIN_AUTH_PLUGIN_DIR . 'includes/admin/class-cors-settings.php';
+require_once HIN_AUTH_PLUGIN_DIR . 'includes/admin/class-roles-admin.php';
+require_once HIN_AUTH_PLUGIN_DIR . 'includes/admin/class-documentation-viewer.php';
+
+// Require WooCommerce Modules
+require_once HIN_AUTH_PLUGIN_DIR . 'includes/woocommerce/class-wholesale-settings.php';
+require_once HIN_AUTH_PLUGIN_DIR . 'includes/woocommerce/class-tier-pricing.php';
+
+// Require Custom Post Types
+require_once HIN_AUTH_PLUGIN_DIR . 'includes/post-types/class-quotes.php';
 
 /**
  * Main Plugin Bootstrap Class
