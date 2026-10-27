@@ -114,41 +114,47 @@ class HIN_Quotes {
 
     public function register_routes() {
         /**
-         * @route   POST /wp-json/handicraft/v1/quotes
-         * @desc    Submit a new custom quote request.
-         * @auth    Logged In Users
+         * @route      POST /wp-json/handicraft/v1/quotes
+         * @desc       Submit a new custom quote request.
+         * @resource   custom_order
+         * @capability custom_order_create
+         * @auth       Logged In Users with custom_order_create capability
          */
         register_rest_route(self::NAMESPACE, '/quotes', [
             'methods'             => WP_REST_Server::CREATABLE,
             'callback'            => [$this, 'handle_submit_quote'],
             'permission_callback' => function () {
-                return is_user_logged_in();
+                return HIN_Security_Handler::check_permission('custom_order', 'create');
             },
         ]);
 
         /**
-         * @route   GET /wp-json/handicraft/v1/quotes
-         * @desc    Retrieve the current user's quote requests.
-         * @auth    Logged In Users
+         * @route      GET /wp-json/handicraft/v1/quotes
+         * @desc       Retrieve the current user's quote requests.
+         * @resource   custom_order
+         * @capability custom_order_read
+         * @auth       Logged In Users with custom_order_read capability
          */
         register_rest_route(self::NAMESPACE, '/quotes', [
             'methods'             => WP_REST_Server::READABLE,
             'callback'            => [$this, 'handle_get_quotes'],
             'permission_callback' => function () {
-                return is_user_logged_in();
+                return HIN_Security_Handler::check_permission('custom_order', 'read');
             },
         ]);
 
         /**
-         * @route   PUT /wp-json/handicraft/v1/quotes/(?P<id>\d+)
-         * @desc    Update quote status.
-         * @auth    Logged In Users (Admin/Manager or quote owner)
+         * @route      PUT /wp-json/handicraft/v1/quotes/(?P<id>\d+)
+         * @desc       Update quote status.
+         * @resource   custom_order
+         * @capability custom_order_update
+         * @auth       Logged In Users with custom_order_update capability
          */
         register_rest_route(self::NAMESPACE, '/quotes/(?P<id>\d+)', [
             'methods'             => WP_REST_Server::EDITABLE,
             'callback'            => [$this, 'handle_update_quote'],
             'permission_callback' => function () {
-                return is_user_logged_in();
+                return HIN_Security_Handler::check_permission('custom_order', 'update');
             },
         ]);
     }

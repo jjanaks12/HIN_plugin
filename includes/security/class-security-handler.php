@@ -215,4 +215,39 @@ class HIN_Security_Handler {
 
         return '127.0.0.1';
     }
+
+    /**
+     * Check if the authenticated user has permission for a specific resource and modifier.
+     *
+     * @param string $resource E.g. 'order', 'custom_order', 'profile'
+     * @param string $action   E.g. 'create', 'read', 'update', 'delete', 'view'
+     * @return true|WP_Error
+     */
+    public static function check_permission(string $resource, string $action) {
+        if (!is_user_logged_in()) {
+            return new WP_Error('rest_unauthorized', __('Authentication required.', 'handicraft-auth'), ['status' => 401]);
+        }
+
+        if (!HIN_Capability_Registry::check_permission($resource, $action)) {
+            $cap_slug = "{$resource}_{$action}";
+            return new WP_Error(
+                'rest_forbidden',
+                sprintf(__('Insufficient permissions: requires capability %s.', 'handicraft-auth'), $cap_slug),
+                ['status' => 403]
+            );
+        }
+
+        return true;
+    }
+
+    /**
+     * Check if the authenticated user has a specific capability slug.
+     *
+     * @param string $capability E.g. 'order_create'
+     * @return true|WP_Error
+     */
+    public static function check_capability(string $capability) {
+        $parsed = HIN_Capability_Registry::parse_capability($capability);
+        return self::check_permission($parsed['resource'], $parsed['modifier']);
+    }
 }

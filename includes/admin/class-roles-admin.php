@@ -22,14 +22,7 @@ class HIN_Roles_Admin
 
     private function get_predefined_capabilities()
     {
-        return [
-            'read'                   => 'Read (Basic Access)',
-            'add_to_cart'            => 'Add to Cart',
-            'view_wholesale_pricing' => 'View Wholesale Pricing',
-            'request_custom_order'   => 'Request Custom Order',
-            'view_dashboard'         => 'View Dashboard',
-            'profile_upgradeable'    => 'Upgrade profile',
-        ];
+        return HIN_Capability_Registry::get_all_capabilities();
     }
 
     public function add_roles_submenu()
@@ -159,72 +152,151 @@ class HIN_Roles_Admin
                         <?php submit_button(__('Update User', 'handicraft-auth'), 'secondary'); ?>
                     </form>
                 </div>
+            </div>
 
-                <!-- Manage Role Capabilities Form -->
-                <div style="flex:1; max-width: 400px; background: #fff; padding: 20px; border: 1px solid #ccd0d4; box-shadow: 0 1px 1px rgba(0,0,0,.04);">
-                    <h2><?php _e('Manage Capabilities', 'handicraft-auth'); ?></h2>
-                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                        <?php wp_nonce_field('hin_manage_capabilities_action', 'hin_manage_capabilities_nonce'); ?>
-                        <input type="hidden" name="action" value="hin_manage_capabilities">
+            <!-- Manage Role Capabilities Section -->
+            <div style="margin-top: 30px; max-width: 1240px; background: #fff; padding: 25px; border: 1px solid #ccd0d4; box-shadow: 0 1px 1px rgba(0,0,0,.04);">
+                <h2><?php _e('Manage Role Capabilities', 'handicraft-auth'); ?></h2>
+                <p><?php _e('Assign fine-grained CRUD and standalone capabilities to roles. Permissions are enforced in REST endpoints and the headless frontend.', 'handicraft-auth'); ?></p>
 
-                        <p>
-                            <label for="cap_role"><strong>Select Role:</strong></label><br />
-                            <select name="cap_role" id="cap_role" style="width:100%;">
-                                <option value="">-- Select a Role --</option>
-                                <?php foreach ($all_roles as $slug => $name): ?>
-                                    <option value="<?php echo esc_attr($slug); ?>"><?php echo esc_html($name); ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </p>
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                    <?php wp_nonce_field('hin_manage_capabilities_action', 'hin_manage_capabilities_nonce'); ?>
+                    <input type="hidden" name="action" value="hin_manage_capabilities">
 
-                        <div id="capabilities_list" style="display: none;">
-                            <p><strong>Capabilities:</strong></p>
-                            <?php
-                            $predefined_capabilities = $this->get_predefined_capabilities();
+                    <p style="max-width: 400px; margin-bottom: 25px;">
+                        <label for="cap_role"><strong><?php _e('Select Role to Configure:', 'handicraft-auth'); ?></strong></label><br />
+                        <select name="cap_role" id="cap_role" style="width:100%; font-size: 14px; padding: 5px;">
+                            <option value="">-- <?php _e('Choose a Role', 'handicraft-auth'); ?> --</option>
+                            <?php foreach ($all_roles as $slug => $name): ?>
+                                <option value="<?php echo esc_attr($slug); ?>"><?php echo esc_html($name); ?> (<?php echo esc_html($slug); ?>)</option>
+                            <?php endforeach; ?>
+                        </select>
+                    </p>
 
-                            // Generate JS Map for roles to their capabilities
-                            $role_caps_map = [];
-                            foreach ($wp_roles->roles as $slug => $details) {
-                                $role_caps_map[$slug] = array_keys(array_filter($details['capabilities']));
-                            }
+                    <div id="capabilities_list" style="display: none;">
+                        <?php
+                        $schema = HIN_Capability_Registry::get_schema();
 
-                            foreach ($predefined_capabilities as $cap_slug => $cap_name): ?>
-                                <label style="display: block; margin-bottom: 5px;">
-                                    <input type="checkbox" name="capabilities[]" value="<?php echo esc_attr($cap_slug); ?>" class="hin-cap-cb" data-cap="<?php echo esc_attr($cap_slug); ?>">
-                                    <?php echo esc_html($cap_name); ?> <code>(<?php echo esc_html($cap_slug); ?>)</code>
-                                </label>
+                        // Generate JS Map for roles to their capabilities
+                        $role_caps_map = [];
+                        foreach ($wp_roles->roles as $slug => $details) {
+                            $role_caps_map[$slug] = array_keys(array_filter($details['capabilities']));
+                        }
+                        ?>
+
+                        <div style="display: flex; flex-direction: column; gap: 20px;">
+
+                            <!-- 1. Grouped CRUD Resources Accordions -->
+                            <?php foreach ($schema['crud_groups'] as $group_key => $group): ?>
+                                <details open class="hin-cap-accordion" style="border: 1px solid #ccd0d4; border-radius: 4px; overflow: hidden; background: #fff;">
+                                    <summary style="cursor: pointer; padding: 12px 16px; background: #f6f7f7; border-bottom: 1px solid #ccd0d4; display: flex; justify-content: space-between; align-items: center; user-select: none;">
+                                        <div>
+                                            <strong style="font-size: 14px; color: #1d2327;">📁 <?php echo esc_html($group['label']); ?></strong>
+                                            <span style="color: #646970; font-size: 13px; margin-left: 10px;">— <?php echo esc_html($group['description']); ?></span>
+                                            <code style="margin-left: 8px; background: #e2e4e7; font-size: 11px;">resource: <?php echo esc_html($group['resource']); ?></code>
+                                        </div>
+                                        <div style="display: flex; gap: 6px;">
+                                            <button type="button" class="button button-small hin-group-select-all" data-target="group-<?php echo esc_attr($group_key); ?>"><?php _e('Select All', 'handicraft-auth'); ?></button>
+                                            <button type="button" class="button button-small hin-group-deselect-all" data-target="group-<?php echo esc_attr($group_key); ?>"><?php _e('Clear', 'handicraft-auth'); ?></button>
+                                        </div>
+                                    </summary>
+
+                                    <div class="group-<?php echo esc_attr($group_key); ?>" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; padding: 16px;">
+                                        <?php foreach ($group['actions'] as $act): ?>
+                                            <div style="border: 1px solid #e0e0e0; padding: 12px; border-radius: 4px; background: #fafafa;">
+                                                <label style="display: block; font-weight: 600; margin-bottom: 4px; cursor: pointer;">
+                                                    <input type="checkbox" name="capabilities[]" value="<?php echo esc_attr($act['slug']); ?>" class="hin-cap-cb" data-cap="<?php echo esc_attr($act['slug']); ?>" style="margin-right: 6px;">
+                                                    <?php echo esc_html($act['label']); ?>
+                                                </label>
+                                                <code style="font-size: 11px; color: #2271b1;"><?php echo esc_html($act['slug']); ?></code>
+                                                <p style="margin: 6px 0 0; font-size: 12px; color: #646970;"><?php echo esc_html($act['description']); ?></p>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </details>
                             <?php endforeach; ?>
 
-                            <p>
-                                <?php submit_button(__('Update Capabilities', 'handicraft-auth'), 'secondary'); ?>
-                            </p>
+                            <!-- 2. Standalone Capabilities Accordion -->
+                            <details open class="hin-cap-accordion" style="border: 1px solid #ccd0d4; border-radius: 4px; overflow: hidden; background: #fff;">
+                                <summary style="cursor: pointer; padding: 12px 16px; background: #f6f7f7; border-bottom: 1px solid #ccd0d4; display: flex; justify-content: space-between; align-items: center; user-select: none;">
+                                    <div>
+                                        <strong style="font-size: 14px; color: #1d2327;">⚡ <?php _e('Standalone Actions (Non-CRUD)', 'handicraft-auth'); ?></strong>
+                                        <span style="color: #646970; font-size: 13px; margin-left: 10px;">— <?php _e('Independent actions like dashboard access, cart additions, and profile management', 'handicraft-auth'); ?></span>
+                                    </div>
+                                    <div style="display: flex; gap: 6px;">
+                                        <button type="button" class="button button-small hin-group-select-all" data-target="group-standalone"><?php _e('Select All', 'handicraft-auth'); ?></button>
+                                        <button type="button" class="button button-small hin-group-deselect-all" data-target="group-standalone"><?php _e('Clear', 'handicraft-auth'); ?></button>
+                                    </div>
+                                </summary>
+
+                                <div class="group-standalone" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; padding: 16px;">
+                                    <?php foreach ($schema['standalone_groups'] as $std_group): ?>
+                                        <?php foreach ($std_group['actions'] as $act): ?>
+                                            <div style="border: 1px solid #e0e0e0; padding: 12px; border-radius: 4px; background: #fafafa;">
+                                                <label style="display: block; font-weight: 600; margin-bottom: 4px; cursor: pointer;">
+                                                    <input type="checkbox" name="capabilities[]" value="<?php echo esc_attr($act['slug']); ?>" class="hin-cap-cb" data-cap="<?php echo esc_attr($act['slug']); ?>" style="margin-right: 6px;">
+                                                    <?php echo esc_html($act['label']); ?>
+                                                </label>
+                                                <code style="font-size: 11px; color: #2271b1;"><?php echo esc_html($act['slug']); ?></code>
+                                                <p style="margin: 6px 0 0; font-size: 12px; color: #646970;"><?php echo esc_html($act['description']); ?></p>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    <?php endforeach; ?>
+                                </div>
+                            </details>
+
                         </div>
-                    </form>
 
-                    <script>
-                        document.addEventListener('DOMContentLoaded', function() {
-                            const roleCapsMap = <?php echo json_encode($role_caps_map); ?>;
-                            const capRoleSelect = document.getElementById('cap_role');
-                            const capListDiv = document.getElementById('capabilities_list');
-                            const checkboxes = document.querySelectorAll('.hin-cap-cb');
+                        <div style="margin-top: 25px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
+                            <?php submit_button(__('Save Role Capabilities', 'handicraft-auth'), 'primary large'); ?>
+                        </div>
+                    </div>
+                </form>
 
-                            capRoleSelect.addEventListener('change', function() {
-                                const selectedRole = this.value;
-                                if (!selectedRole) {
-                                    capListDiv.style.display = 'none';
-                                    return;
-                                }
+                <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const roleCapsMap = <?php echo json_encode($role_caps_map); ?>;
+                        const capRoleSelect = document.getElementById('cap_role');
+                        const capListDiv = document.getElementById('capabilities_list');
+                        const checkboxes = document.querySelectorAll('.hin-cap-cb');
 
-                                capListDiv.style.display = 'block';
-                                const activeCaps = roleCapsMap[selectedRole] || [];
+                        capRoleSelect.addEventListener('change', function() {
+                            const selectedRole = this.value;
+                            if (!selectedRole) {
+                                capListDiv.style.display = 'none';
+                                return;
+                            }
 
-                                checkboxes.forEach(cb => {
-                                    cb.checked = activeCaps.includes(cb.dataset.cap);
-                                });
+                            capListDiv.style.display = 'block';
+                            const activeCaps = roleCapsMap[selectedRole] || [];
+
+                            checkboxes.forEach(cb => {
+                                cb.checked = activeCaps.includes(cb.dataset.cap);
                             });
                         });
-                    </script>
-                </div>
+
+                        // Select All / Deselect All Handlers
+                        document.querySelectorAll('.hin-group-select-all').forEach(btn => {
+                            btn.addEventListener('click', function(e) {
+                                e.preventDefault();
+                                const container = document.querySelector('.' + this.dataset.target);
+                                if (container) {
+                                    container.querySelectorAll('.hin-cap-cb').forEach(cb => cb.checked = true);
+                                }
+                            });
+                        });
+
+                        document.querySelectorAll('.hin-group-deselect-all').forEach(btn => {
+                            btn.addEventListener('click', function(e) {
+                                e.preventDefault();
+                                const container = document.querySelector('.' + this.dataset.target);
+                                if (container) {
+                                    container.querySelectorAll('.hin-cap-cb').forEach(cb => cb.checked = false);
+                                }
+                            });
+                        });
+                    });
+                </script>
             </div>
 
             <!-- List Existing Roles -->
@@ -348,12 +420,12 @@ class HIN_Roles_Admin
         $role_slug = sanitize_text_field($_POST['cap_role']);
         $submitted_caps = isset($_POST['capabilities']) ? array_map('sanitize_text_field', $_POST['capabilities']) : [];
 
-        $predefined_capabilities = array_keys($this->get_predefined_capabilities());
+        $all_capabilities = array_keys(HIN_Capability_Registry::get_all_capabilities());
 
         $role = get_role($role_slug);
         if ($role) {
-            foreach ($predefined_capabilities as $cap) {
-                if (in_array($cap, $submitted_caps)) {
+            foreach ($all_capabilities as $cap) {
+                if (in_array($cap, $submitted_caps, true)) {
                     $role->add_cap($cap);
                 } else {
                     $role->remove_cap($cap);

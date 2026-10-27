@@ -174,10 +174,13 @@ class HIN_Order_Routes {
     }
 
     /**
-     * Ensure user is authenticated for private order history.
+     * Ensure user is authenticated and authorized to view order history.
+     *
+     * @resource   order
+     * @capability order_read
      */
-    public function check_authenticated_user(WP_REST_Request $request): bool {
-        return get_current_user_id() > 0;
+    public function check_authenticated_user(WP_REST_Request $request) {
+        return HIN_Security_Handler::check_permission('order', 'read');
     }
 
     /**

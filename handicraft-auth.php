@@ -18,6 +18,7 @@ define('HIN_AUTH_VERSION', '1.0.0');
 define('HIN_AUTH_PLUGIN_DIR', plugin_dir_path(__FILE__));
 
 // Require Services
+require_once HIN_AUTH_PLUGIN_DIR . 'includes/services/class-capability-registry.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/services/class-jwt-handler.php';
 require_once HIN_AUTH_PLUGIN_DIR . 'includes/services/class-user-service.php';
 
@@ -139,10 +140,41 @@ class HIN_Auth_Plugin {
                 __('Wholesale Customer', 'handicraft-auth'),
                 [
                     'read'                   => true,
-                    'view_wholesale_pricing' => true,
-                    'request_custom_order'   => true,
+                    'pricing_wholesale_view' => true,
+                    'view_wholesale_pricing' => true, // legacy alias
+                    'custom_order_create'    => true,
+                    'custom_order_read'      => true,
+                    'custom_order_update'    => true,
+                    'request_custom_order'   => true, // legacy alias
+                    'order_create'           => true,
+                    'order_read'             => true,
+                    'dashboard_view'         => true,
+                    'cart_add'               => true,
+                    'profile_edit'           => true,
                 ]
             );
+        } else {
+            $role = get_role('wholesale');
+            $role->add_cap('pricing_wholesale_view');
+            $role->add_cap('custom_order_create');
+            $role->add_cap('custom_order_read');
+            $role->add_cap('custom_order_update');
+            $role->add_cap('order_create');
+            $role->add_cap('order_read');
+            $role->add_cap('dashboard_view');
+            $role->add_cap('cart_add');
+            $role->add_cap('profile_edit');
+        }
+
+        // Ensure customer role has standard self-service capabilities
+        $customer_role = get_role('customer');
+        if ($customer_role) {
+            $customer_role->add_cap('dashboard_view');
+            $customer_role->add_cap('cart_add');
+            $customer_role->add_cap('profile_edit');
+            $customer_role->add_cap('profile_upgradeable');
+            $customer_role->add_cap('order_create');
+            $customer_role->add_cap('order_read');
         }
 
         // 2. Register Product Manager Role

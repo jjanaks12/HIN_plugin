@@ -154,11 +154,14 @@ class HIN_Auth_Routes
         ]);
 
         /**
-         * @route   GET /wp-json/handicraft/v1/auth/me
-         * @desc    Retrieve profile data of the currently authenticated user.
-         * @auth    Bearer JWT Token required
-         * @returns 200 { success: bool, user: object }
-         * @errors  401 Unauthorized, 404 Not Found
+         * @route      GET /wp-json/handicraft/v1/auth/me
+         * @route      PUT /wp-json/handicraft/v1/auth/me
+         * @desc       Get or update currently authenticated user profile.
+         * @resource   profile
+         * @capability profile_edit (for PUT)
+         * @auth       Bearer JWT Token required
+         * @returns    200 { success: bool, user: object }
+         * @errors     401 Unauthorized, 404 Not Found
          */
         register_rest_route(self::NAMESPACE, '/auth/me', [
             [
@@ -169,19 +172,25 @@ class HIN_Auth_Routes
             [
                 'methods'             => WP_REST_Server::EDITABLE,
                 'callback'            => [$this, 'handle_update_me'],
-                'permission_callback' => [$this, 'check_authenticated_permission'],
+                'permission_callback' => function () {
+                    return HIN_Security_Handler::check_permission('profile', 'edit');
+                },
             ]
         ]);
 
         /**
-         * @route   POST /wp-json/handicraft/v1/auth/upgrade
-         * @desc    Upgrade to wholesale account.
-         * @auth    Bearer JWT Token required
+         * @route      POST /wp-json/handicraft/v1/auth/upgrade
+         * @desc       Upgrade to wholesale account.
+         * @resource   profile
+         * @capability profile_upgradeable
+         * @auth       Bearer JWT Token required
          */
         register_rest_route(self::NAMESPACE, '/auth/upgrade', [
             'methods'             => WP_REST_Server::CREATABLE,
             'callback'            => [$this, 'handle_upgrade'],
-            'permission_callback' => [$this, 'check_authenticated_permission'],
+            'permission_callback' => function () {
+                return HIN_Security_Handler::check_permission('profile', 'upgradeable');
+            },
             'args'                => [
                 'company_name' => [
                     'required'          => true,
