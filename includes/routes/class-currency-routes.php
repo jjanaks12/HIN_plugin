@@ -117,7 +117,7 @@ class HIN_Currency_Routes {
                     'name'              => $info['name'],
                     'symbol'            => $info['symbol'],
                     'rate'              => $info['rate'],
-                    'isDefault'         => $code === $base_currency,
+                    'isDefault'         => $code === 'USD',
                     'flag'              => plugins_url('assets/flags/' . $info['country'] . '.svg', WP_PLUGIN_DIR . '/yaycurrency/yaycurrency.php'),
                     'flagEmoji'         => $info['emoji'],
                     'currencyPosition'  => 'left',
@@ -127,6 +127,25 @@ class HIN_Currency_Routes {
                 ];
             }
         }
+
+        // 3. Normalize all rates relative to base store currency USD ($)
+        $usd_rate = 1.0;
+        foreach ($currencies as $c) {
+            if ($c['code'] === 'USD') {
+                $usd_rate = floatval($c['rate']);
+                break;
+            }
+        }
+
+        if ($usd_rate > 0 && $usd_rate != 1.0) {
+            foreach ($currencies as &$c) {
+                $c['rate'] = round($c['rate'] / $usd_rate, 4);
+                $c['isDefault'] = ($c['code'] === 'USD');
+            }
+            unset($c);
+        }
+
+        $base_currency = 'USD';
 
         return new WP_REST_Response([
             'success'      => true,

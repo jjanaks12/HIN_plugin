@@ -726,6 +726,11 @@ Retrieves single product information by slug or numeric ID, including gallery im
     "regularPrice": 110.00,
     "salePrice": 85.00,
     "wholesalePrice": 45.00,
+    "tierPricing": [
+      { "min_qty": 50, "max_qty": 99, "discount": 10, "price": 76.50 },
+      { "min_qty": 100, "max_qty": 499, "discount": 20, "price": 68.00 },
+      { "min_qty": 500, "max_qty": "", "discount": 30, "price": 59.50 }
+    ],
     "onSale": true,
     "inStock": true,
     "stockQuantity": 15,
@@ -832,6 +837,13 @@ export interface ProductReview {
   verified: boolean;
 }
 
+export interface TierPricingItem {
+  min_qty: number;
+  max_qty: number | '';
+  discount: number; // percentage discount (e.g. 10 for 10% off)
+  price: number; // effective unit price after discount
+}
+
 export interface ProductItem {
   id: number;
   name: string;
@@ -841,6 +853,7 @@ export interface ProductItem {
   regularPrice: number;
   salePrice: number | null;
   wholesalePrice: number | null;
+  tierPricing?: TierPricingItem[];
   onSale: boolean;
   inStock: boolean;
   stockQuantity: number | null;

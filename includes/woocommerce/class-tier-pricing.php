@@ -3,7 +3,7 @@
 /**
  * Tier Pricing
  *
- * Handles quantity-based tier pricing.
+ * Handles quantity-based tier pricing with percentage discounts.
  *
  * @package   Handicraft_Auth
  */
@@ -33,14 +33,21 @@ class HIN_Tier_Pricing
             $tier_pricing = [];
         }
 
+        $product = wc_get_product($post->ID);
+        $base_price = $product ? floatval($product->get_price()) : 0;
+
         echo '<div class="options_group show_if_simple show_if_external" style="padding: 0 10px;">';
-        echo '<h4>' . __('Tier Pricing (Quantity Based)', 'handicraft-auth') . '</h4>';
+        echo '<h4>' . __('Tier Pricing (Quantity & Percentage Discount)', 'handicraft-auth') . '</h4>';
 
         echo '<div id="hin_tier_pricing_container" style="padding-bottom: 10px;">';
 
         if (!empty($tier_pricing)) {
             foreach ($tier_pricing as $index => $tier) {
-                $this->render_tier_row($index, $tier['min_qty'] ?? '', $tier['max_qty'] ?? '', $tier['price'] ?? '');
+                $discount = isset($tier['discount']) && $tier['discount'] !== '' ? $tier['discount'] : '';
+                if ($discount === '' && !empty($tier['price']) && $base_price > 0) {
+                    $discount = round((($base_price - floatval($tier['price'])) / $base_price) * 100, 1);
+                }
+                $this->render_tier_row($index, $tier['min_qty'] ?? '', $tier['max_qty'] ?? '', $discount);
             }
         }
 
@@ -53,7 +60,7 @@ class HIN_Tier_Pricing
         echo '</div>';
         echo '</div>';
 
-        // Add some basic JavaScript for adding/removing rows
+        // Add JavaScript for adding/removing rows
 ?>
         <script type="text/javascript">
             jQuery(document).ready(function($) {
@@ -73,7 +80,7 @@ class HIN_Tier_Pricing
 <?php
     }
 
-    private function render_tier_row($index, $min, $max, $price)
+    private function render_tier_row($index, $min, $max, $discount)
     {
         echo '<div class="hin_tier_row" style="display:flex; gap: 10px; margin-bottom: 15px; align-items: center;">';
 
@@ -83,8 +90,8 @@ class HIN_Tier_Pricing
         echo '<span style="font-weight:600; width:auto; float:none; margin:0; padding:0;">' . __('Max Qty:', 'handicraft-auth') . '</span>';
         echo '<input type="number" name="hin_tier_max[' . $index . ']" value="' . esc_attr($max) . '" step="1" min="1" style="width: 80px; margin-right: 15px;" placeholder="&#8734;" />';
 
-        echo '<span style="font-weight:600; width:auto; float:none; margin:0; padding:0;">' . __('Price ($):', 'handicraft-auth') . '</span>';
-        echo '<input type="number" name="hin_tier_price[' . $index . ']" value="' . esc_attr($price) . '" step="0.01" min="0" style="width: 100px; margin-right: 15px;" />';
+        echo '<span style="font-weight:600; width:auto; float:none; margin:0; padding:0;">' . __('Discount (%):', 'handicraft-auth') . '</span>';
+        echo '<input type="number" name="hin_tier_discount[' . $index . ']" value="' . esc_attr($discount) . '" step="0.1" min="0" max="100" style="width: 90px; margin-right: 15px;" placeholder="%" />';
 
         echo '<button type="button" class="button hin_remove_tier">' . __('Remove', 'handicraft-auth') . '</button>';
 
@@ -104,21 +111,32 @@ class HIN_Tier_Pricing
         $tier_pricing = [];
         $mins = $_POST['hin_tier_min'];
         $maxes = $_POST['hin_tier_max'];
-        $prices = $_POST['hin_tier_price'];
+        $discounts = $_POST['hin_tier_discount'] ?? [];
+
+        $product = wc_get_product($post_id);
+        $wholesale_price = get_post_meta($post_id, '_wholesale_price', true);
+        $base_price = (!empty($wholesale_price) && floatval($wholesale_price) > 0)
+            ? floatval($wholesale_price)
+            : ($product ? floatval($product->get_price()) : 0);
 
         foreach ($mins as $index => $min) {
             $min = intval($min);
-            $price = floatval($prices[$index]);
-
-            if ($min > 0 && $price > 0) {
-                $max = !empty($maxes[$index]) ? intval($maxes[$index]) : '';
-
-                $tier_pricing[] = [
-                    'min_qty' => $min,
-                    'max_qty' => $max,
-                    'price'   => $price,
-                ];
+            if ($min <= 0) {
+                continue;
             }
+
+            $max = !empty($maxes[$index]) ? intval($maxes[$index]) : '';
+            $discount = isset($discounts[$index]) && $discounts[$index] !== '' ? floatval($discounts[$index]) : 0;
+            $discount = max(0, min(100, $discount));
+
+            $unit_price = $base_price > 0 ? round($base_price * (1 - ($discount / 100)), 2) : 0;
+
+            $tier_pricing[] = [
+                'min_qty'  => $min,
+                'max_qty'  => $max,
+                'discount' => $discount,
+                'price'    => $unit_price,
+            ];
         }
 
         // Sort tiers by min_qty
@@ -150,10 +168,15 @@ class HIN_Tier_Pricing
             $max = $tier['max_qty'] !== '' ? intval($tier['max_qty']) : PHP_INT_MAX;
 
             if ($qty >= $min && $qty <= $max) {
-                $effective_price = floatval($tier['price']);
+                if (isset($tier['discount']) && is_numeric($tier['discount'])) {
+                    $discount = floatval($tier['discount']);
+                    $effective_price = $base_price * (1 - ($discount / 100));
+                } elseif (isset($tier['price']) && is_numeric($tier['price'])) {
+                    $effective_price = floatval($tier['price']);
+                }
             }
         }
 
-        return $effective_price;
+        return round($effective_price, 2);
     }
 }

@@ -596,6 +596,37 @@ class HIN_Catalog_Routes {
             }
         }
 
+        $raw_tier_pricing = get_post_meta($id, '_tier_pricing', true);
+        $formatted_tiers = [];
+        if (!empty($raw_tier_pricing) && is_array($raw_tier_pricing)) {
+            $wholesale_p = (!empty($wholesale_price) && is_numeric($wholesale_price)) ? floatval($wholesale_price) : 0;
+            $tier_base_p = ($wholesale_p > 0) ? $wholesale_p : (!empty($price) ? floatval($price) : 0);
+            foreach ($raw_tier_pricing as $tier) {
+                $t_min = isset($tier['min_qty']) ? intval($tier['min_qty']) : 1;
+                $t_max = isset($tier['max_qty']) && $tier['max_qty'] !== '' ? intval($tier['max_qty']) : '';
+                $t_disc = isset($tier['discount']) && $tier['discount'] !== '' ? floatval($tier['discount']) : null;
+                $t_price = isset($tier['price']) && $tier['price'] !== '' ? floatval($tier['price']) : null;
+
+                if ($t_disc !== null) {
+                    $u_price = $tier_base_p > 0 ? round($tier_base_p * (1 - ($t_disc / 100)), 2) : ($t_price ?: 0);
+                    $formatted_tiers[] = [
+                        'min_qty'  => $t_min,
+                        'max_qty'  => $t_max,
+                        'discount' => $t_disc,
+                        'price'    => $u_price,
+                    ];
+                } elseif ($t_price !== null) {
+                    $u_disc = $tier_base_p > 0 ? round((($tier_base_p - $t_price) / $tier_base_p) * 100, 1) : 0;
+                    $formatted_tiers[] = [
+                        'min_qty'  => $t_min,
+                        'max_qty'  => $t_max,
+                        'discount' => max(0, $u_disc),
+                        'price'    => $t_price,
+                    ];
+                }
+            }
+        }
+
         return [
             'id'               => (int) $id,
             'name'             => html_entity_decode($product->get_name(), ENT_QUOTES, 'UTF-8'),
@@ -605,7 +636,7 @@ class HIN_Catalog_Routes {
             'regularPrice'     => !empty($regular_price) ? floatval($regular_price) : (!empty($price) ? floatval($price) : 0),
             'salePrice'        => !empty($sale_price) ? floatval($sale_price) : null,
             'wholesalePrice'   => !empty($wholesale_price) ? floatval($wholesale_price) : null,
-            'tierPricing'      => get_post_meta($id, '_tier_pricing', true) ?: [],
+            'tierPricing'      => $formatted_tiers,
             'onSale'           => $product->is_on_sale(),
             'inStock'          => $product->is_in_stock(),
             'stockQuantity'    => $product->get_stock_quantity(),

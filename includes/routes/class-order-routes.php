@@ -394,16 +394,25 @@ class HIN_Order_Routes {
             if ($requested_currency !== 'USD' && class_exists('Yay_Currency\Helpers\YayCurrencyHelper')) {
                 $yay_currencies = \Yay_Currency\Helpers\YayCurrencyHelper::converted_currency();
                 if (!empty($yay_currencies) && is_array($yay_currencies)) {
+                    $usd_rate = 1.0;
+                    $target_rate = 1.0;
                     foreach ($yay_currencies as $curr) {
-                        if (strtoupper($curr['currency'] ?? '') === $requested_currency) {
-                            if (isset($curr['rate'])) {
-                                $rate_val = is_array($curr['rate']) ? floatval($curr['rate']['value'] ?? 1.0) : floatval($curr['rate']);
-                                if ($rate_val > 0) {
-                                    $exchange_rate = $rate_val;
-                                }
-                            }
-                            break;
+                        $curr_code = strtoupper($curr['currency'] ?? '');
+                        $r_val = 1.0;
+                        if (isset($curr['rate'])) {
+                            $r_val = is_array($curr['rate']) ? floatval($curr['rate']['value'] ?? 1.0) : floatval($curr['rate']);
                         }
+                        if ($curr_code === 'USD' && $r_val > 0) {
+                            $usd_rate = $r_val;
+                        }
+                        if ($curr_code === $requested_currency && $r_val > 0) {
+                            $target_rate = $r_val;
+                        }
+                    }
+                    if ($usd_rate > 0 && $usd_rate != 1.0) {
+                        $exchange_rate = round($target_rate / $usd_rate, 4);
+                    } else {
+                        $exchange_rate = $target_rate;
                     }
                 }
             }
