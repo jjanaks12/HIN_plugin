@@ -13,7 +13,8 @@
 | `POST` | `/auth/refresh` | Refresh an expired access token using a refresh token | No |
 | `POST` | `/auth/logout` | Clear HttpOnly JWT token cookie & terminate session | No (Public / Optional) |
 | `POST` | `/auth/validate` | Verify JWT token validity | No (or Bearer header) |
-| `GET` | `/auth/me` | Fetch currently authenticated user profile | **Yes** (`Bearer <token>`) |
+| `GET` | `/auth/me` | Fetch currently authenticated user profile & addresses | **Yes** (`Bearer <token>`) |
+| `PUT` | `/auth/me` | Update authenticated user profile & default addresses | **Yes** (`Bearer <token>`) |
 | `GET` | `/menus` | Fetch navigation menus tree by location or slug | No |
 | `GET` | `/catalog/{slug}` | Fetch category info, subcategories, paginated products, & sorts | No |
 | `GET` | `/categories` | Fetch top-level product categories with padded product counts | No |
@@ -318,7 +319,7 @@ export interface ValidateTokenResponse {
 
 ## 4. Get Current User Profile (`/auth/me`)
 
-Retrieves the authenticated user's profile and roles.
+Retrieves the authenticated user's profile, roles, capabilities, and saved default shipping & billing addresses.
 
 * **URL:** `/wp-json/handicraft/v1/auth/me`
 * **Method:** `GET`
@@ -336,10 +337,38 @@ Retrieves the authenticated user's profile and roles.
     "lastName": "Shrestha",
     "displayName": "Janak Shrestha",
     "roles": ["wholesale"],
+    "capabilities": ["dashboard_view", "order_read", "profile_edit", "pricing_wholesale_view"],
     "isWholesale": true,
     "companyName": "Himalayan Crafts LLC",
+    "taxId": "VAT-98765432",
     "country": "NP",
     "phone": "+9779800000000",
+    "shippingAddress": {
+      "firstName": "Janak",
+      "lastName": "Shrestha",
+      "company": "Himalayan Crafts LLC",
+      "address1": "Boudha Road 4",
+      "address2": "Suite 201",
+      "city": "Kathmandu",
+      "state": "Bagmati",
+      "postcode": "44600",
+      "country": "NP",
+      "phone": "+9779800000000",
+      "email": "janak@example.com"
+    },
+    "billingAddress": {
+      "firstName": "Janak",
+      "lastName": "Shrestha",
+      "company": "Himalayan Crafts LLC",
+      "address1": "Boudha Road 4",
+      "address2": "Suite 201",
+      "city": "Kathmandu",
+      "state": "Bagmati",
+      "postcode": "44600",
+      "country": "NP",
+      "phone": "+9779800000000",
+      "email": "janak@example.com"
+    },
     "registeredAt": "2026-08-16 13:40:00"
   }
 }
@@ -356,6 +385,39 @@ Retrieves the authenticated user's profile and roles.
 
 ### TypeScript Interface (Frontend Contract)
 ```typescript
+export interface SavedAddress {
+  firstName: string;
+  lastName: string;
+  company?: string;
+  address1: string;
+  address2?: string;
+  city: string;
+  state?: string;
+  postcode: string;
+  country: string;
+  phone: string;
+  email?: string;
+}
+
+export interface UserProfile {
+  id: number;
+  username: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  displayName?: string;
+  roles: string[];
+  capabilities?: string[];
+  isWholesale?: boolean;
+  companyName?: string;
+  taxId?: string;
+  country?: string;
+  phone?: string;
+  shippingAddress?: SavedAddress | null;
+  billingAddress?: SavedAddress | null;
+  registeredAt?: string;
+}
+
 export interface CurrentUserResponse {
   success: boolean;
   user: UserProfile;
@@ -364,7 +426,119 @@ export interface CurrentUserResponse {
 
 ---
 
-## 4.1 User Logout (`/auth/logout`)
+## 4.1 Update User Profile & Saved Addresses (`/auth/me`)
+
+Updates the authenticated user's profile metadata and/or default shipping and billing addresses in WooCommerce customer data.
+
+* **URL:** `/wp-json/handicraft/v1/auth/me`
+* **Method:** `PUT`
+* **Headers:** `Authorization: Bearer <token>`, `Content-Type: application/json`
+
+### Request Body (Updating Shipping & Billing Address)
+```json
+{
+  "shippingAddress": {
+    "firstName": "Janak",
+    "lastName": "Shrestha",
+    "company": "Himalayan Crafts LLC",
+    "address1": "Boudha Road 4",
+    "address2": "Suite 201",
+    "city": "Kathmandu",
+    "state": "Bagmati",
+    "postcode": "44600",
+    "country": "NP",
+    "phone": "+9779800000000",
+    "email": "janak@example.com"
+  },
+  "billingAddress": {
+    "firstName": "Janak",
+    "lastName": "Shrestha",
+    "company": "Himalayan Crafts LLC",
+    "address1": "Boudha Road 4",
+    "address2": "Suite 201",
+    "city": "Kathmandu",
+    "state": "Bagmati",
+    "postcode": "44600",
+    "country": "NP",
+    "phone": "+9779800000000",
+    "email": "janak@example.com"
+  }
+}
+```
+
+### Response `200 OK`
+```json
+{
+  "success": true,
+  "message": "Profile updated successfully.",
+  "user": {
+    "id": 12,
+    "username": "janak_artisan",
+    "email": "janak@example.com",
+    "firstName": "Janak",
+    "lastName": "Shrestha",
+    "displayName": "Janak Shrestha",
+    "roles": ["wholesale"],
+    "capabilities": ["dashboard_view", "order_read", "profile_edit"],
+    "isWholesale": true,
+    "companyName": "Himalayan Crafts LLC",
+    "taxId": "VAT-98765432",
+    "country": "NP",
+    "phone": "+9779800000000",
+    "shippingAddress": {
+      "firstName": "Janak",
+      "lastName": "Shrestha",
+      "company": "Himalayan Crafts LLC",
+      "address1": "Boudha Road 4",
+      "address2": "Suite 201",
+      "city": "Kathmandu",
+      "state": "Bagmati",
+      "postcode": "44600",
+      "country": "NP",
+      "phone": "+9779800000000",
+      "email": "janak@example.com"
+    },
+    "billingAddress": {
+      "firstName": "Janak",
+      "lastName": "Shrestha",
+      "company": "Himalayan Crafts LLC",
+      "address1": "Boudha Road 4",
+      "address2": "Suite 201",
+      "city": "Kathmandu",
+      "state": "Bagmati",
+      "postcode": "44600",
+      "country": "NP",
+      "phone": "+9779800000000",
+      "email": "janak@example.com"
+    },
+    "registeredAt": "2026-08-16 13:40:00"
+  }
+}
+```
+
+### TypeScript Interface (Frontend Contract)
+```typescript
+export interface UpdateProfilePayload {
+  firstName?: string;
+  lastName?: string;
+  companyName?: string;
+  taxId?: string;
+  phone?: string;
+  country?: string;
+  shippingAddress?: SavedAddress;
+  billingAddress?: SavedAddress;
+}
+
+export interface UpdateProfileResponse {
+  success: boolean;
+  message: string;
+  user: UserProfile;
+}
+```
+
+---
+
+## 4.2 User Logout (`/auth/logout`)
 
 Clears the `hin_access_token` `HttpOnly` cookie and terminates the user session on the server.
 

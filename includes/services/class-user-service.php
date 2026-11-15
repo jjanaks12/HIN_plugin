@@ -174,6 +174,157 @@ class HIN_User_Service {
             update_user_meta($user_id, 'billing_country', sanitize_text_field($data['country']));
         }
 
+        // Update Shipping Address if provided
+        $shipping = $data['shippingAddress'] ?? $data['shipping_address'] ?? null;
+        if (is_array($shipping)) {
+            if (isset($shipping['firstName']) || isset($shipping['first_name'])) {
+                update_user_meta($user_id, 'shipping_first_name', sanitize_text_field($shipping['firstName'] ?? $shipping['first_name']));
+            }
+            if (isset($shipping['lastName']) || isset($shipping['last_name'])) {
+                update_user_meta($user_id, 'shipping_last_name', sanitize_text_field($shipping['lastName'] ?? $shipping['last_name']));
+            }
+            if (isset($shipping['company'])) {
+                update_user_meta($user_id, 'shipping_company', sanitize_text_field($shipping['company']));
+            }
+            if (isset($shipping['address1']) || isset($shipping['address_1'])) {
+                update_user_meta($user_id, 'shipping_address_1', sanitize_text_field($shipping['address1'] ?? $shipping['address_1']));
+            }
+            if (isset($shipping['address2']) || isset($shipping['address_2'])) {
+                update_user_meta($user_id, 'shipping_address_2', sanitize_text_field($shipping['address2'] ?? $shipping['address_2']));
+            }
+            if (isset($shipping['city'])) {
+                update_user_meta($user_id, 'shipping_city', sanitize_text_field($shipping['city']));
+            }
+            if (isset($shipping['state'])) {
+                update_user_meta($user_id, 'shipping_state', sanitize_text_field($shipping['state']));
+            }
+            if (isset($shipping['postcode'])) {
+                update_user_meta($user_id, 'shipping_postcode', sanitize_text_field($shipping['postcode']));
+            }
+            if (isset($shipping['country'])) {
+                update_user_meta($user_id, 'shipping_country', sanitize_text_field($shipping['country']));
+            }
+            if (isset($shipping['phone'])) {
+                update_user_meta($user_id, 'shipping_phone', sanitize_text_field($shipping['phone']));
+            }
+        }
+
+        // Update Billing Address if provided
+        $billing = $data['billingAddress'] ?? $data['billing_address'] ?? null;
+        if (is_array($billing)) {
+            if (isset($billing['firstName']) || isset($billing['first_name'])) {
+                update_user_meta($user_id, 'billing_first_name', sanitize_text_field($billing['firstName'] ?? $billing['first_name']));
+            }
+            if (isset($billing['lastName']) || isset($billing['last_name'])) {
+                update_user_meta($user_id, 'billing_last_name', sanitize_text_field($billing['lastName'] ?? $billing['last_name']));
+            }
+            if (isset($billing['company'])) {
+                update_user_meta($user_id, 'billing_company', sanitize_text_field($billing['company']));
+            }
+            if (isset($billing['address1']) || isset($billing['address_1'])) {
+                update_user_meta($user_id, 'billing_address_1', sanitize_text_field($billing['address1'] ?? $billing['address_1']));
+            }
+            if (isset($billing['address2']) || isset($billing['address_2'])) {
+                update_user_meta($user_id, 'billing_address_2', sanitize_text_field($billing['address2'] ?? $billing['address_2']));
+            }
+            if (isset($billing['city'])) {
+                update_user_meta($user_id, 'billing_city', sanitize_text_field($billing['city']));
+            }
+            if (isset($billing['state'])) {
+                update_user_meta($user_id, 'billing_state', sanitize_text_field($billing['state']));
+            }
+            if (isset($billing['postcode'])) {
+                update_user_meta($user_id, 'billing_postcode', sanitize_text_field($billing['postcode']));
+            }
+            if (isset($billing['country'])) {
+                update_user_meta($user_id, 'billing_country', sanitize_text_field($billing['country']));
+            }
+            if (isset($billing['phone'])) {
+                update_user_meta($user_id, 'billing_phone', sanitize_text_field($billing['phone']));
+            }
+            if (isset($billing['email'])) {
+                update_user_meta($user_id, 'billing_email', sanitize_email($billing['email']));
+            }
+        }
+
+        // Sync with WooCommerce Customer if active
+        if (class_exists('WC_Customer')) {
+            try {
+                $customer = new WC_Customer($user_id);
+                if (is_array($shipping)) {
+                    if (isset($shipping['firstName']) || isset($shipping['first_name'])) {
+                        $customer->set_shipping_first_name(sanitize_text_field($shipping['firstName'] ?? $shipping['first_name']));
+                    }
+                    if (isset($shipping['lastName']) || isset($shipping['last_name'])) {
+                        $customer->set_shipping_last_name(sanitize_text_field($shipping['lastName'] ?? $shipping['last_name']));
+                    }
+                    if (isset($shipping['company'])) {
+                        $customer->set_shipping_company(sanitize_text_field($shipping['company']));
+                    }
+                    if (isset($shipping['address1']) || isset($shipping['address_1'])) {
+                        $customer->set_shipping_address_1(sanitize_text_field($shipping['address1'] ?? $shipping['address_1']));
+                    }
+                    if (isset($shipping['address2']) || isset($shipping['address_2'])) {
+                        $customer->set_shipping_address_2(sanitize_text_field($shipping['address2'] ?? $shipping['address_2']));
+                    }
+                    if (isset($shipping['city'])) {
+                        $customer->set_shipping_city(sanitize_text_field($shipping['city']));
+                    }
+                    if (isset($shipping['state'])) {
+                        $customer->set_shipping_state(sanitize_text_field($shipping['state']));
+                    }
+                    if (isset($shipping['postcode'])) {
+                        $customer->set_shipping_postcode(sanitize_text_field($shipping['postcode']));
+                    }
+                    if (isset($shipping['country'])) {
+                        $customer->set_shipping_country(sanitize_text_field($shipping['country']));
+                    }
+                    if (isset($shipping['phone']) && method_exists($customer, 'set_shipping_phone')) {
+                        $customer->set_shipping_phone(sanitize_text_field($shipping['phone']));
+                    }
+                }
+                if (is_array($billing)) {
+                    if (isset($billing['firstName']) || isset($billing['first_name'])) {
+                        $customer->set_billing_first_name(sanitize_text_field($billing['firstName'] ?? $billing['first_name']));
+                    }
+                    if (isset($billing['lastName']) || isset($billing['last_name'])) {
+                        $customer->set_billing_last_name(sanitize_text_field($billing['lastName'] ?? $billing['last_name']));
+                    }
+                    if (isset($billing['company'])) {
+                        $customer->set_billing_company(sanitize_text_field($billing['company']));
+                    }
+                    if (isset($billing['address1']) || isset($billing['address_1'])) {
+                        $customer->set_billing_address_1(sanitize_text_field($billing['address1'] ?? $billing['address_1']));
+                    }
+                    if (isset($billing['address2']) || isset($billing['address_2'])) {
+                        $customer->set_billing_address_2(sanitize_text_field($billing['address2'] ?? $billing['address_2']));
+                    }
+                    if (isset($billing['city'])) {
+                        $customer->set_billing_city(sanitize_text_field($billing['city']));
+                    }
+                    if (isset($billing['state'])) {
+                        $customer->set_billing_state(sanitize_text_field($billing['state']));
+                    }
+                    if (isset($billing['postcode'])) {
+                        $customer->set_billing_postcode(sanitize_text_field($billing['postcode']));
+                    }
+                    if (isset($billing['country'])) {
+                        $customer->set_billing_country(sanitize_text_field($billing['country']));
+                    }
+                    if (isset($billing['phone'])) {
+                        $customer->set_billing_phone(sanitize_text_field($billing['phone']));
+                    }
+                    if (isset($billing['email'])) {
+                        $customer->set_billing_email(sanitize_email($billing['email']));
+                    }
+                }
+                $customer->save();
+            } catch (Throwable $e) {
+                // Ignore WC_Customer exception if not properly initialized in CLI/headless
+            }
+        }
+
+        clean_user_cache($user_id);
         return get_user_by('id', $user_id);
     }
 
@@ -187,21 +338,65 @@ class HIN_User_Service {
         $roles = (array) $user->roles;
         $is_wholesale = in_array('wholesale', $roles, true);
 
+        // Resolve Shipping Address
+        $shipping_address_1 = get_user_meta($user->ID, 'shipping_address_1', true);
+        $shipping_country   = get_user_meta($user->ID, 'shipping_country', true);
+        $shipping_city      = get_user_meta($user->ID, 'shipping_city', true);
+
+        $has_shipping = !empty($shipping_address_1) || !empty($shipping_country) || !empty($shipping_city);
+
+        $shipping_address = $has_shipping ? [
+            'firstName' => get_user_meta($user->ID, 'shipping_first_name', true) ?: $user->first_name,
+            'lastName'  => get_user_meta($user->ID, 'shipping_last_name', true) ?: $user->last_name,
+            'company'   => get_user_meta($user->ID, 'shipping_company', true) ?: '',
+            'address1'  => $shipping_address_1 ?: '',
+            'address2'  => get_user_meta($user->ID, 'shipping_address_2', true) ?: '',
+            'city'      => $shipping_city ?: '',
+            'state'     => get_user_meta($user->ID, 'shipping_state', true) ?: '',
+            'postcode'  => get_user_meta($user->ID, 'shipping_postcode', true) ?: '',
+            'country'   => $shipping_country ?: '',
+            'phone'     => get_user_meta($user->ID, 'shipping_phone', true) ?: get_user_meta($user->ID, 'billing_phone', true) ?: '',
+            'email'     => $user->user_email,
+        ] : null;
+
+        // Resolve Billing Address
+        $billing_address_1 = get_user_meta($user->ID, 'billing_address_1', true);
+        $billing_country   = get_user_meta($user->ID, 'billing_country', true);
+        $billing_city      = get_user_meta($user->ID, 'billing_city', true);
+
+        $has_billing = !empty($billing_address_1) || !empty($billing_country) || !empty($billing_city);
+
+        $billing_address = $has_billing ? [
+            'firstName' => get_user_meta($user->ID, 'billing_first_name', true) ?: $user->first_name,
+            'lastName'  => get_user_meta($user->ID, 'billing_last_name', true) ?: $user->last_name,
+            'company'   => get_user_meta($user->ID, 'billing_company', true) ?: '',
+            'address1'  => $billing_address_1 ?: '',
+            'address2'  => get_user_meta($user->ID, 'billing_address_2', true) ?: '',
+            'city'      => $billing_city ?: '',
+            'state'     => get_user_meta($user->ID, 'billing_state', true) ?: '',
+            'postcode'  => get_user_meta($user->ID, 'billing_postcode', true) ?: '',
+            'country'   => $billing_country ?: '',
+            'phone'     => get_user_meta($user->ID, 'billing_phone', true) ?: '',
+            'email'     => get_user_meta($user->ID, 'billing_email', true) ?: $user->user_email,
+        ] : null;
+
         return [
-            'id'           => (int) $user->ID,
-            'username'     => $user->user_login,
-            'email'        => $user->user_email,
-            'firstName'    => $user->first_name,
-            'lastName'     => $user->last_name,
-            'displayName'  => $user->display_name,
-            'roles'        => $roles,
-            'capabilities' => array_keys(array_filter((array) $user->allcaps)),
-            'isWholesale'  => $is_wholesale,
-            'companyName'  => get_user_meta($user->ID, 'billing_company', true) ?: '',
-            'taxId'        => get_user_meta($user->ID, '_tax_id', true) ?: '',
-            'country'      => get_user_meta($user->ID, 'billing_country', true) ?: '',
-            'phone'        => get_user_meta($user->ID, 'billing_phone', true) ?: '',
-            'registeredAt' => $user->user_registered,
+            'id'              => (int) $user->ID,
+            'username'        => $user->user_login,
+            'email'           => $user->user_email,
+            'firstName'       => $user->first_name,
+            'lastName'        => $user->last_name,
+            'displayName'     => $user->display_name,
+            'roles'           => $roles,
+            'capabilities'    => array_keys(array_filter((array) $user->allcaps)),
+            'isWholesale'     => $is_wholesale,
+            'companyName'     => get_user_meta($user->ID, 'billing_company', true) ?: '',
+            'taxId'           => get_user_meta($user->ID, '_tax_id', true) ?: '',
+            'country'         => get_user_meta($user->ID, 'billing_country', true) ?: '',
+            'phone'           => get_user_meta($user->ID, 'billing_phone', true) ?: '',
+            'shippingAddress' => $shipping_address,
+            'billingAddress'  => $billing_address,
+            'registeredAt'    => $user->user_registered,
         ];
     }
 }

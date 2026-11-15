@@ -401,7 +401,21 @@ class HIN_Auth_Routes
     }
 
     /**
-     * Handle Update Me Request (Update Profile).
+     * Handle Update Me Request (Update Profile & Saved Addresses).
+     *
+     * @route   PUT /wp-json/handicraft/v1/auth/me
+     * @desc    Updates authenticated user's profile metadata and/or default shipping & billing addresses.
+     * @auth    Bearer JWT Token required
+     * @params  string [firstName]
+     * @params  string [lastName]
+     * @params  string [companyName]
+     * @params  string [taxId]
+     * @params  string [phone]
+     * @params  string [country]
+     * @params  object [shippingAddress] { firstName: string, lastName: string, company?: string, address1: string, address2?: string, city: string, state?: string, postcode: string, country: string, phone?: string }
+     * @params  object [billingAddress] { firstName: string, lastName: string, company?: string, address1: string, address2?: string, city: string, state?: string, postcode: string, country: string, phone?: string, email?: string }
+     * @returns 200 { success: true, message: string, user: object }
+     * @errors  400 Bad Request, 401 Unauthorized, 403 Forbidden, 404 Not Found
      *
      * @param WP_REST_Request $request
      * @return WP_REST_Response
