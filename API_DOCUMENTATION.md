@@ -1200,7 +1200,9 @@ Submit a customer inquiry message from the public Contact Us page. Dispatches an
   "name": "Sarah Jenkins",
   "email": "sarah.j@example.com",
   "phone": "+1 415 555 2671",
-  "subject": "Inquiry regarding singing bowls wholesale",
+  "country": "United States",
+  "order_number": "1042",
+  "subject": "A wholesale order",
   "message": "Hello, I am interested in ordering handcrafted singing bowls and Lokta journals in bulk for my boutique in San Francisco. Could you please share export freight details?"
 }
 ```
@@ -1222,6 +1224,8 @@ export interface ContactPayload {
   name: string
   email: string
   phone?: string
+  country?: string
+  order_number?: string
   subject?: string
   message: string
 }

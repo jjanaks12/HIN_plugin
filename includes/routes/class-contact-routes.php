@@ -51,6 +51,16 @@ class HIN_Contact_Routes {
                     'type'              => 'string',
                     'sanitize_callback' => 'sanitize_text_field',
                 ],
+                'country' => [
+                    'required'          => false,
+                    'type'              => 'string',
+                    'sanitize_callback' => 'sanitize_text_field',
+                ],
+                'order_number' => [
+                    'required'          => false,
+                    'type'              => 'string',
+                    'sanitize_callback' => 'sanitize_text_field',
+                ],
                 'subject' => [
                     'required'          => false,
                     'type'              => 'string',
@@ -76,11 +86,13 @@ class HIN_Contact_Routes {
      * @return WP_REST_Response
      */
     public function handle_submit_contact(WP_REST_Request $request): WP_REST_Response {
-        $name    = trim($request->get_param('name') ?? '');
-        $email   = trim($request->get_param('email') ?? '');
-        $phone   = trim($request->get_param('phone') ?? '');
-        $subject = trim($request->get_param('subject') ?? 'General Inquiry');
-        $message = trim($request->get_param('message') ?? '');
+        $name         = trim($request->get_param('name') ?? '');
+        $email        = trim($request->get_param('email') ?? '');
+        $phone        = trim($request->get_param('phone') ?? '');
+        $country      = trim($request->get_param('country') ?? '');
+        $order_number = trim($request->get_param('order_number') ?? $request->get_param('orderNumber') ?? '');
+        $subject      = trim($request->get_param('subject') ?? 'General Inquiry');
+        $message      = trim($request->get_param('message') ?? '');
 
         if (empty($name) || empty($email) || empty($message)) {
             return new WP_REST_Response([
@@ -106,10 +118,12 @@ class HIN_Contact_Routes {
         $email_subject = sprintf('[Handicrafts in Nepal] Contact Form: %s', $subject);
         $email_body    = "You received a new inquiry from the website contact form:\n\n"
             . "----------------------------------------\n"
-            . "Name:    " . esc_html($name) . "\n"
-            . "Email:   " . esc_html($email) . "\n"
-            . "Phone:   " . (!empty($phone) ? esc_html($phone) : 'N/A') . "\n"
-            . "Subject: " . esc_html($subject) . "\n"
+            . "Name:         " . esc_html($name) . "\n"
+            . "Email:        " . esc_html($email) . "\n"
+            . "Country:      " . (!empty($country) ? esc_html($country) : 'N/A') . "\n"
+            . "Order Number: " . (!empty($order_number) ? esc_html($order_number) : 'N/A') . "\n"
+            . "Subject:      " . esc_html($subject) . "\n"
+            . "Phone:        " . (!empty($phone) ? esc_html($phone) : 'N/A') . "\n"
             . "----------------------------------------\n\n"
             . "Message:\n" . esc_textarea($message) . "\n\n"
             . "----------------------------------------\n"
