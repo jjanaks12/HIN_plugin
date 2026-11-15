@@ -425,10 +425,16 @@ class HIN_Roles_Admin
         $role = get_role($role_slug);
         if ($role) {
             foreach ($all_capabilities as $cap) {
+                $aliases = HIN_Capability_Registry::get_aliases_for_slug($cap);
                 if (in_array($cap, $submitted_caps, true)) {
                     $role->add_cap($cap);
                 } else {
                     $role->remove_cap($cap);
+                }
+
+                // Always purge legacy alias from role so only canonical <resource>_<modifier> standard is saved
+                foreach ($aliases as $alias) {
+                    $role->remove_cap($alias);
                 }
             }
         }

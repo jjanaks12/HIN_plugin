@@ -16,6 +16,7 @@
 | `GET` | `/auth/me` | Fetch currently authenticated user profile | **Yes** (`Bearer <token>`) |
 | `GET` | `/menus` | Fetch navigation menus tree by location or slug | No |
 | `GET` | `/catalog/{slug}` | Fetch category info, subcategories, paginated products, & sorts | No |
+| `GET` | `/categories` | Fetch top-level product categories with padded product counts | No |
 | `GET` | `/products` | Fetch paginated catalog products with multi-criteria sorting & search | No |
 | `GET` | `/products/{slug}` | Fetch single product detail, attributes, gallery, reviews, & related products | No |
 | `GET` | `/search` | Predictive instant autocomplete search for products & categories | No |
@@ -593,6 +594,67 @@ export interface CatalogResponse {
   sort: string;
   availableSorts: SortOption[];
   products: ProductItem[];
+}
+```
+
+---
+
+## 6.1 Get Top-Level Categories (`/categories`)
+
+Retrieves all top-level product categories along with total published product counts (aggregating subcategory products via padded counts).
+
+* **URL:** `/wp-json/handicraft/v1/categories`
+* **Method:** `GET`
+* **Auth:** Public
+
+### Query Parameters
+| Parameter | Type | Required | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `hide_empty` | `boolean` | No | `false` | Whether to omit categories with zero product count. |
+
+### Response `200 OK`
+```json
+{
+  "success": true,
+  "categories": [
+    {
+      "id": 23,
+      "name": "Books",
+      "slug": "books",
+      "count": 55,
+      "href": "/books"
+    },
+    {
+      "id": 50,
+      "name": "Incense",
+      "slug": "incense",
+      "count": 138,
+      "href": "/incense"
+    },
+    {
+      "id": 43,
+      "name": "Hemp Products",
+      "slug": "hemp-products",
+      "count": 21,
+      "href": "/hemp-products"
+    }
+  ]
+}
+```
+
+### TypeScript Interface (Frontend Contract)
+```typescript
+export interface CategoryFilterItem {
+  id: number;
+  name: string;
+  slug: string;
+  count: number;
+  href: string;
+}
+
+export interface CategoriesResponse {
+  success: boolean;
+  categories: CategoryFilterItem[];
 }
 ```
 

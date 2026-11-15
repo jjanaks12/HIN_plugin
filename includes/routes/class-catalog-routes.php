@@ -52,13 +52,22 @@ class HIN_Catalog_Routes {
 
         /**
          * @route   GET /wp-json/handicraft/v1/categories
-         * @desc    Retrieve all top-level product categories.
+         * @desc    Retrieve all top-level product categories with padded product counts.
          * @auth    Public
          */
         register_rest_route(self::NAMESPACE, '/categories', [
             'methods'             => WP_REST_Server::READABLE,
             'callback'            => [$this, 'handle_get_categories'],
             'permission_callback' => '__return_true',
+            'args'                => [
+                'hide_empty' => [
+                    'description'       => 'Whether to omit categories with zero product count.',
+                    'required'          => false,
+                    'type'              => 'boolean',
+                    'default'           => false,
+                    'sanitize_callback' => 'rest_sanitize_boolean',
+                ],
+            ],
         ]);
 
         /**
@@ -109,21 +118,27 @@ class HIN_Catalog_Routes {
 
     /**
      * Handle Get Categories Endpoint.
+     * Retrieves all top-level product categories with padded product counts including subcategories.
      *
      * @param WP_REST_Request $request
      * @return WP_REST_Response
      */
     public function handle_get_categories(WP_REST_Request $request): WP_REST_Response {
-        $terms = get_terms([
+        $hide_empty = filter_var($request->get_param('hide_empty'), FILTER_VALIDATE_BOOLEAN);
+
+        // Fetch all categories with pad_counts = true to aggregate subcategory products into parent counts
+        $all_terms = get_terms([
             'taxonomy'   => 'product_cat',
-            'hide_empty' => false,
-            'parent'     => 0, // Get top-level categories only
+            'hide_empty' => $hide_empty,
+            'pad_counts' => true,
         ]);
 
         $categories = [];
-        if (!empty($terms) && !is_wp_error($terms)) {
-            foreach ($terms as $term) {
-                if ($term->slug === 'uncategorized') continue;
+        if (!empty($all_terms) && !is_wp_error($all_terms)) {
+            foreach ($all_terms as $term) {
+                if ((int) $term->parent !== 0 || $term->slug === 'uncategorized') {
+                    continue;
+                }
                 $categories[] = [
                     'id'    => (int) $term->term_id,
                     'name'  => html_entity_decode($term->name, ENT_QUOTES, 'UTF-8'),
