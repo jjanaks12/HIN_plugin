@@ -785,6 +785,7 @@ Retrieves all top-level product categories along with total published product co
 | Parameter | Type | Required | Default | Description |
 | :--- | :--- | :--- | :--- | :--- |
 | `hide_empty` | `boolean` | No | `false` | Whether to omit categories with zero product count. |
+| `all` | `boolean` | No | `false` | Whether to include subcategories in addition to top-level categories. |
 
 ### Response `200 OK`
 ```json
@@ -796,6 +797,7 @@ Retrieves all top-level product categories along with total published product co
       "name": "Books",
       "slug": "books",
       "count": 55,
+      "parent": 0,
       "href": "/books"
     },
     {
@@ -803,6 +805,7 @@ Retrieves all top-level product categories along with total published product co
       "name": "Incense",
       "slug": "incense",
       "count": 138,
+      "parent": 0,
       "href": "/incense"
     },
     {
@@ -810,6 +813,7 @@ Retrieves all top-level product categories along with total published product co
       "name": "Hemp Products",
       "slug": "hemp-products",
       "count": 21,
+      "parent": 0,
       "href": "/hemp-products"
     }
   ]
@@ -823,6 +827,7 @@ export interface CategoryFilterItem {
   name: string;
   slug: string;
   count: number;
+  parent?: number;
   href: string;
 }
 

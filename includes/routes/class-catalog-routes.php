@@ -67,6 +67,13 @@ class HIN_Catalog_Routes {
                     'default'           => false,
                     'sanitize_callback' => 'rest_sanitize_boolean',
                 ],
+                'all' => [
+                    'description'       => 'Whether to include subcategories in addition to top-level categories.',
+                    'required'          => false,
+                    'type'              => 'boolean',
+                    'default'           => false,
+                    'sanitize_callback' => 'rest_sanitize_boolean',
+                ],
             ],
         ]);
 
@@ -125,6 +132,7 @@ class HIN_Catalog_Routes {
      */
     public function handle_get_categories(WP_REST_Request $request): WP_REST_Response {
         $hide_empty = filter_var($request->get_param('hide_empty'), FILTER_VALIDATE_BOOLEAN);
+        $all        = filter_var($request->get_param('all'), FILTER_VALIDATE_BOOLEAN);
 
         // Fetch all categories with pad_counts = true to aggregate subcategory products into parent counts
         $all_terms = get_terms([
@@ -136,15 +144,19 @@ class HIN_Catalog_Routes {
         $categories = [];
         if (!empty($all_terms) && !is_wp_error($all_terms)) {
             foreach ($all_terms as $term) {
-                if ((int) $term->parent !== 0 || $term->slug === 'uncategorized') {
+                if ($term->slug === 'uncategorized') {
+                    continue;
+                }
+                if (!$all && (int) $term->parent !== 0) {
                     continue;
                 }
                 $categories[] = [
-                    'id'    => (int) $term->term_id,
-                    'name'  => html_entity_decode($term->name, ENT_QUOTES, 'UTF-8'),
-                    'slug'  => $term->slug,
-                    'count' => (int) $term->count,
-                    'href'  => '/' . $term->slug,
+                    'id'     => (int) $term->term_id,
+                    'name'   => html_entity_decode($term->name, ENT_QUOTES, 'UTF-8'),
+                    'slug'   => $term->slug,
+                    'count'  => (int) $term->count,
+                    'parent' => (int) $term->parent,
+                    'href'   => '/' . $term->slug,
                 ];
             }
         }
